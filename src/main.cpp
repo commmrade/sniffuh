@@ -200,6 +200,12 @@ void print_udp(udphdr& udp) {
 }
 
 int main(int argc, char** argv) {
+    // TODOS:
+    // 1. Fix options negative size when packet is broken
+    // 2. process VLAN
+    // 3. Print options
+
+
     iphdr s;
     int ret;
 
