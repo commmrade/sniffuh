@@ -13,6 +13,8 @@
 #include <net/if.h>
 #include <linux/if_arp.h>
 
+#define TODO(x) throw std::runtime_error(std::format("TODO: {}", x))
+
 template <typename Action>
 struct defer {
     Action f_;
@@ -59,12 +61,36 @@ ethhdr parse_eth(char* bytes, size_t bytes_size) {
     return result;
 }
 
-arphdr parse_arp(char* bytes, size_t bytes_size) {
-    arphdr result;
-    if (bytes_size < sizeof(arphdr)) {
+struct arphdr_f { // ONLY FOR IPv4
+	__be16		ar_hrd;		/* format of hardware address	*/
+	__be16		ar_pro;		/* format of protocol address	*/
+	unsigned char	ar_hln;		/* length of hardware address	*/
+	unsigned char	ar_pln;		/* length of protocol address	*/
+	__be16		ar_op;		/* ARP opcode (command)		*/
+	unsigned char		ar_sha[ETH_ALEN];	/* sender hardware address	*/
+	unsigned char		ar_sip[4];		/* sender IP address		*/
+	unsigned char		ar_tha[ETH_ALEN];	/* target hardware address	*/
+	unsigned char		ar_tip[4];		/* target IP address		*/
+};
+
+arphdr_f parse_arp(char* bytes, size_t bytes_size) {
+    arphdr_f result;
+    if (bytes_size < sizeof(result)) {
         throw std::runtime_error("Buf is too short to parse arp");
     }
 
+    uint16_t htype; // 1 for ethernet
+    std::memcpy(&htype, bytes, sizeof(htype));
+    htype = ntohs(htype);
+    bytes += sizeof(htype);
+
+    uint16_t hproto;
+    std::memcpy(&hproto, bytes, sizeof(hproto));
+    hproto = ntohs(hproto);
+    bytes += sizeof(hproto);
+
+    TODO("To be continued");
+    return result;
 }
 
 
@@ -111,7 +137,7 @@ int main(int argc, char** argv) {
         }
         size_t buf_size = rd_bytes;
 
-        auto eth = parse_eth(buf, rd_bytes);
+        auto eth = parse_eth(p, buf_size);
         p += sizeof(eth);
         buf_size -= sizeof(eth);
 
@@ -119,6 +145,7 @@ int main(int argc, char** argv) {
         if (eth.h_proto == 0x0800) {
             // std::println("IP");
         } else if (eth.h_proto == 0x0806) {
+            parse_arp(p, buf_size);
             std::println("ARP");
         }
     }
