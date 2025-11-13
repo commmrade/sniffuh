@@ -96,62 +96,88 @@ void print_arp(arphdr_f& arp) {
     std::println("Target IP: {}\n==========", addr_buf);
 }
 
-iphdr parse_ip(char* bytes, size_t bytes_size) {
-    iphdr result{};
-    if (bytes_size < sizeof(result)) {
+
+struct iphdr_f {
+	iphdr hdr;
+	std::vector<char> options;
+};
+
+iphdr_f parse_ip(char* bytes, size_t bytes_size) {
+    iphdr_f result;
+    if (bytes_size < sizeof(result.hdr)) {
         throw std::runtime_error("Buffer is too short for iphdr");
     }
 
-    std::memcpy(&result, bytes, sizeof(result));
-    if (result.version == 6) {
+    std::memcpy(&result.hdr, bytes, sizeof(result.hdr));
+    if (result.hdr.version == 6) {
         throw std::runtime_error("IPv6 not supported yet");
     }
-    // TODO: Options if any
+    bytes += sizeof(result.hdr);
+    bytes_size -= sizeof(result.hdr);
+
+    auto options_size = (result.hdr.ihl * 4) - sizeof(iphdr);
+    if (bytes_size < options_size) {
+        throw std::runtime_error("Options requested, size is smaller");
+    }
+    result.options.resize(options_size);
+    std::memcpy(result.options.data(), bytes, options_size);
     return result;
 }
 
-void print_ip(iphdr& ip) {
+void print_ip(iphdr_f& ip) {
     std::println("========");
 
-    int ver = ip.version;
-    int ihl = ip.ihl;
+    int ver = ip.hdr.version;
+    int ihl = ip.hdr.ihl;
     std::println("Version: {}\nIHL: {}\nTotal length: {}\nId: {}\nFrag off: {}\nTtl: {}\nProtocol: {}\nCheck: {}",
-        ver, ihl, ntohs(ip.tot_len), ntohs(ip.id), ntohs(ip.frag_off), ip.ttl, ip.protocol, ntohs(ip.check));
+        ver, ihl, ntohs(ip.hdr.tot_len), ntohs(ip.hdr.id), ntohs(ip.hdr.frag_off), ip.hdr.ttl, ip.hdr.protocol, ntohs(ip.hdr.check));
 
     char addr_buf[INET_ADDRSTRLEN];
-    const char* r = inet_ntop(AF_INET, &ip.saddr, addr_buf, sizeof(addr_buf));
+    const char* r = inet_ntop(AF_INET, &ip.hdr.saddr, addr_buf, sizeof(addr_buf));
     assert(r);
     std::println("Source IP: {}", addr_buf);
-    r = inet_ntop(AF_INET, &ip.daddr, addr_buf, sizeof(addr_buf));
+    r = inet_ntop(AF_INET, &ip.hdr.daddr, addr_buf, sizeof(addr_buf));
     assert(r);
     std::println("Destination IP: {}", addr_buf);
     std::println("========");
+
+    // TODO: PRINT OPTIONS
 }
 
-tcphdr parse_tcp(char* bytes, size_t bytes_size) {
-    tcphdr result{};
-    if (bytes_size < sizeof(result)) {
+
+struct tcphdr_f {
+    tcphdr hdr;
+    std::vector<char> options;
+};
+
+tcphdr_f parse_tcp(char* bytes, size_t bytes_size) {
+    tcphdr_f result{};
+    if (bytes_size < sizeof(tcphdr)) {
         throw std::runtime_error("Buf is not big enough to parse TCP");
     }
-    std::memcpy(&result, bytes, sizeof(result));
-    if (result.doff > 5) {
-        auto doff = result.doff;
-        // throw std::runtime_error(std::format("Options is not supported in tcp: {}", doff));
+    std::memcpy(&result.hdr, bytes, sizeof(tcphdr));
+    bytes += sizeof(tcphdr);
+    bytes_size -= sizeof(tcphdr);
+
+    auto options_size = result.hdr.doff * 4 - sizeof(tcphdr);
+    if (bytes_size < options_size) {
+        throw std::runtime_error("not enough bytes in buf to read tcp options");
     }
-    // TODO: Options
+    result.options.resize(options_size);
+    std::memcpy(result.options.data(), bytes, options_size);
     return result;
 }
 
-void print_tcp(tcphdr& tcp) {
+void print_tcp(tcphdr_f& tcp) {
     std::println("======== TCP****");
-    std::println("Source port: {}", ntohs(tcp.source));
-    std::println("Dest port: {}", ntohs(tcp.dest));
-    std::println("Seq Num: {}", ntohl(tcp.seq));
-    std::println("Ack Num: {}", ntohl(tcp.ack_seq));
-    auto doff = tcp.doff;
+    std::println("Source port: {}", ntohs(tcp.hdr.source));
+    std::println("Dest port: {}", ntohs(tcp.hdr.dest));
+    std::println("Seq Num: {}", ntohl(tcp.hdr.seq));
+    std::println("Ack Num: {}", ntohl(tcp.hdr.ack_seq));
+    auto doff = tcp.hdr.doff;
     std::println("Data offset (in bytes): {}", (doff - 5) * 4);
-    std::println("Window: {}", ntohs(tcp.window));
-    std::println("Urg: {}", ntohs(tcp.urg_ptr));
+    std::println("Window: {}", ntohs(tcp.hdr.window));
+    std::println("Urg: {}", ntohs(tcp.hdr.urg_ptr));
     // TODO: OPTIONS
     std::println("========");
 }
@@ -217,8 +243,6 @@ int main(int argc, char** argv) {
     }
 
 
-
-
     while (true) {
         char buf[(1 << 16)];
         char* p = buf;
@@ -235,25 +259,17 @@ int main(int argc, char** argv) {
 
 
         if (ntohs(eth.h_proto) == 0x0800) {
-            // std::println("IP");
             auto ip = parse_ip(p, buf_size);
-            // p += sizeof(ip);
-            // buf_size -= sizeof(ip);
-            p += ip.ihl * 4;
-            buf_size = ip.ihl * 4;
-            // TODO: move ptr by options bytes
+            auto ip_size = ip.hdr.ihl * 4;
+            p += ip_size;
+            buf_size -= ip_size;
             print_ip(ip);
-
-            // std::println("Protocol: {}", ip.protocol);
-            if (ip.protocol == 6) { // tcp
+            if (ip.hdr.protocol == 6) { // tcp
                 auto tcp = parse_tcp(p, buf_size);
-                // p += sizeof(tcp);
-                // buf_size -= sizeof(tcp);
-                p += tcp.doff * 4;
-                buf_size -= tcp.doff * 4;
-                // TOOD: Move ptr by options bytes
+                p += tcp.hdr.doff * 4;
+                buf_size -= tcp.hdr.doff * 4;
                 print_tcp(tcp);
-            } else if (ip.protocol == 17) { // udp
+            } else if (ip.hdr.protocol == 17) { // udp
                 auto udp = parse_udp(p, buf_size);
                 p += sizeof(udp);
                 buf_size -= sizeof(udp);
@@ -263,7 +279,7 @@ int main(int argc, char** argv) {
             auto arp = parse_arp(p, buf_size);
             p += sizeof(arp);
             buf_size -= sizeof(arp);
-            // print_arp(arp);
+            print_arp(arp);
         }
     }
 
