@@ -237,18 +237,22 @@ int main(int argc, char** argv) {
         if (ntohs(eth.h_proto) == 0x0800) {
             // std::println("IP");
             auto ip = parse_ip(p, buf_size);
-            p += sizeof(ip);
-            buf_size -= sizeof(ip);
+            // p += sizeof(ip);
+            // buf_size -= sizeof(ip);
+            p += ip.ihl * 4;
+            buf_size = ip.ihl * 4;
             // TODO: move ptr by options bytes
-            // print_ip(ip);
+            print_ip(ip);
 
             // std::println("Protocol: {}", ip.protocol);
             if (ip.protocol == 6) { // tcp
                 auto tcp = parse_tcp(p, buf_size);
-                p += sizeof(tcp);
-                buf_size -= sizeof(tcp);
+                // p += sizeof(tcp);
+                // buf_size -= sizeof(tcp);
+                p += tcp.doff * 4;
+                buf_size -= tcp.doff * 4;
                 // TOOD: Move ptr by options bytes
-                // print_tcp(tcp);
+                print_tcp(tcp);
             } else if (ip.protocol == 17) { // udp
                 auto udp = parse_udp(p, buf_size);
                 p += sizeof(udp);
@@ -265,73 +269,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-
-
-// Arp parsing {
-//
-// arphdr_f result;
-// if (bytes_size < sizeof(result)) {
-//     throw std::runtime_error("Buf is too short to parse arp");
-// }
-
-// std::uint16_t htype; // 1 for ethernet
-// std::memcpy(&htype, bytes, sizeof(htype));
-// htype = ntohs(htype);
-// bytes += sizeof(htype);
-
-// std::uint16_t hproto;
-// std::memcpy(&hproto, bytes, sizeof(hproto));
-// hproto = ntohs(hproto);
-// bytes += sizeof(hproto);
-
-
-// std::uint8_t hlen;
-// std::memcpy(&hlen, bytes, sizeof(hlen));
-// bytes += sizeof(hlen);
-
-// std::uint8_t plen;
-// std::memcpy(&plen, bytes, sizeof(plen));
-// bytes += sizeof(plen);
-
-// std::uint16_t op;
-// std::memcpy(&op, bytes, sizeof(op));
-// op = ntohs(op);
-// bytes += sizeof(op);
-
-// // SHA - Sender hardware address
-// std::memcpy(&result.ar_sha, bytes, sizeof(result.ar_sha));
-// bytes += sizeof(result.ar_sha);
-
-// // SPA - sender protocol address
-// std::memcpy(&result.ar_sip, bytes, sizeof(result.ar_sip));
-// bytes += sizeof(result.ar_sip);
-
-// // THA - target hardware address
-// std::memcpy(&result.ar_tha, bytes, sizeof(result.ar_tha));
-// bytes += sizeof(result.ar_tha);
-
-// // TPA - Target protocol address
-// std::memcpy(&result.ar_tip, bytes, sizeof(result.ar_tip));
-// bytes += sizeof(result.ar_tip);
-
-// result.ar_hrd = htype;
-// result.ar_pro = hproto;
-// result.ar_hln = hlen;
-// result.ar_pln = plen;
-// result.ar_op = op;
-//
-//
-// }
-
-// eth parsing {
-//   // std::memcpy(result.h_dest, bytes, sizeof(result.h_dest));
-    // bytes += sizeof(result.h_dest);
-    // std::memcpy(result.h_source, bytes, sizeof(result.h_dest));
-    // bytes += sizeof(result.h_source);
-
-    // uint16_t proto_net;
-    // std::memcpy(&proto_net, bytes, sizeof(proto_net));
-    // proto_net = ntohs(proto_net);
-    // result.h_proto = proto_net;
-
-// }
