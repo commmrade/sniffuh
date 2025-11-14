@@ -250,8 +250,13 @@ void print_tcp(tcphdr_f& tcp) {
                     std::println("    Sender timestamp: {}\n    Reply timestamp: {}", ststmp, ttstmp);
                     break;
                 }
+                case 5: {
+                    std::println("    Selective Acknowledgement permitted option");
+                    break;
+                }
                 default: {
                     std::println("UNSUPPORTED OPTION {}", kind);
+                    throw -1;
                     break;
                 }
             }

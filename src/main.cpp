@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
         throw std::runtime_error("Should be ran as root");
     }
 
-    Server serv{"wlan0"};
+    Server serv{"enp8s0"};
     serv.start_sniffing();
     return 0;
 }
