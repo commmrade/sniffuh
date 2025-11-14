@@ -1,4 +1,6 @@
 #include <cassert>
+#include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <netinet/in.h>
@@ -58,42 +60,63 @@ ethhdr parse_eth(char* bytes, size_t bytes_size) {
 }
 
 struct arphdr_f { // ONLY FOR IPv4
-	uint16_t		ar_hrd;		/* format of hardware address	*/
-	uint16_t		ar_pro;		/* format of protocol address	*/
-	unsigned char	ar_hln;		/* length of hardware address	*/
-	unsigned char	ar_pln;		/* length of protocol address	*/
-	uint16_t		ar_op;		/* ARP opcode (command)		*/
-	unsigned char		ar_sha[ETH_ALEN];	/* sender hardware address	*/
+    arphdr hdr;
+    std::vector<char> plod;
+};
+
+#pragma pack(push, 1)
+struct arphdr_ipv4 {
+    unsigned char		ar_sha[ETH_ALEN];	/* sender hardware address	*/
 	unsigned char		ar_sip[4];		/* sender IP address		*/
 	unsigned char		ar_tha[ETH_ALEN];	/* target hardware address	*/
 	unsigned char		ar_tip[4];		/* target IP address		*/
 };
+#pragma pack(pop)
 
 arphdr_f parse_arp(char* bytes, size_t bytes_size) {
     arphdr_f result;
-    if (bytes_size < sizeof(result)) {
+    if (bytes_size < sizeof(result.hdr)) {
         throw std::runtime_error("Buf is too short to parse arp");
     }
+    std::memcpy(&result.hdr, bytes, sizeof(result.hdr));
+    bytes += sizeof(result.hdr);
+    bytes_size -= sizeof(result.hdr);
 
-    std::memcpy(&result, bytes, sizeof(arphdr_f));
+    if (ntohs(result.hdr.ar_hrd) == 1 && ntohs(result.hdr.ar_pro) == 0x0800) {
+        auto body_size = sizeof(arphdr_ipv4); // TODO Handle error
+        result.plod.resize(body_size);
+        std::memcpy(result.plod.data(), bytes, body_size);
+    } else {
+        throw std::runtime_error("Parsing other types of arp is not supported");
+    }
+
     return result;
 }
 
 void print_arp(arphdr_f& arp) {
-    std::println("==========\nHardware type: {}\nProtocol type: {:#06x}\nHardware length: {}\nProtocol length: {}\nOperation: {}", ntohs(arp.ar_hrd), ntohs(arp.ar_pro), arp.ar_hln, arp.ar_pln, ntohs(arp.ar_op));
-    std::println("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} - Source", arp.ar_sha[0], arp.ar_sha[1], arp.ar_sha[2], arp.ar_sha[3], arp.ar_sha[4], arp.ar_sha[5]);
-    std::println("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} - Target", arp.ar_tha[0], arp.ar_tha[1], arp.ar_tha[2], arp.ar_tha[3], arp.ar_tha[4], arp.ar_tha[5]);
+    std::println("==========\nHardware type: {}\nProtocol type: {:#06x}\nHardware length: {}\nProtocol length: {}\nOperation: {}", ntohs(arp.hdr.ar_hrd), ntohs(arp.hdr.ar_pro), arp.hdr.ar_hln, arp.hdr.ar_pln, ntohs(arp.hdr.ar_op));
 
-    char addr_buf[INET_ADDRSTRLEN]{};
-    void* saddr = nullptr;
+    if (ntohs(arp.hdr.ar_hrd) == 1 && ntohs(arp.hdr.ar_pro) == 0x0800) { // mac and ipv4
+        if (arp.plod.size() < sizeof(arphdr_ipv4)) {
+            throw std::runtime_error("ARP payload isn't big enough");
+        }
+        arphdr_ipv4 body{};
+        std::memcpy(&body, arp.plod.data(), sizeof(body));
 
-    const char* r = inet_ntop(AF_INET, arp.ar_sip, addr_buf, sizeof(addr_buf));
-    assert(r);
-    std::println("Sender IP: {}", addr_buf);
+        char addr_buf[INET_ADDRSTRLEN]{};
 
-    r = inet_ntop(AF_INET, arp.ar_tip, addr_buf, sizeof(addr_buf));
-    assert(r);
-    std::println("Target IP: {}\n==========", addr_buf);
+        const char* r = inet_ntop(AF_INET, body.ar_sip, addr_buf, sizeof(addr_buf));
+        assert(r);
+        std::println("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} - Source", body.ar_sha[0], body.ar_sha[1], body.ar_sha[2], body.ar_sha[3], body.ar_sha[4], body.ar_sha[5]);
+        std::println("Sender IP: {}", addr_buf);
+
+        r = inet_ntop(AF_INET, body.ar_tip, addr_buf, sizeof(addr_buf));
+        assert(r);
+        std::println("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} - Target", body.ar_tha[0], body.ar_tha[1], body.ar_tha[2], body.ar_tha[3], body.ar_tha[4], body.ar_tha[5]);
+        std::println("Target IP: {}\n==========", addr_buf);
+    } else {
+        std::println("***This ARP hardware address and protocol address are not supported***");
+    }
 }
 
 
@@ -121,11 +144,12 @@ iphdr_f parse_ip(char* bytes, size_t bytes_size) {
     }
     result.options.resize(options_size);
     std::memcpy(result.options.data(), bytes, options_size);
+    // Options are almost never used in Ipv4 so idc
     return result;
 }
 
 void print_ip(iphdr_f& ip) {
-    std::println("========");
+    std::println("======== IP");
 
     int ver = ip.hdr.version;
     int ihl = ip.hdr.ihl;
@@ -139,9 +163,8 @@ void print_ip(iphdr_f& ip) {
     r = inet_ntop(AF_INET, &ip.hdr.daddr, addr_buf, sizeof(addr_buf));
     assert(r);
     std::println("Destination IP: {}", addr_buf);
-    std::println("========");
 
-    // TODO: PRINT OPTIONS
+    std::println("========");
 }
 
 
@@ -179,6 +202,62 @@ void print_tcp(tcphdr_f& tcp) {
     std::println("Window: {}", ntohs(tcp.hdr.window));
     std::println("Urg: {}", ntohs(tcp.hdr.urg_ptr));
     // TODO: OPTIONS
+
+    auto options_size = (tcp.hdr.doff * 4) - sizeof(tcphdr);
+    if (options_size) {
+        std::println("Options:");
+        auto* obytes = tcp.options.data();
+        auto size = tcp.options.size();
+
+        while (size) {
+            uint8_t kind;
+            std::memcpy(&kind, obytes, sizeof(kind));
+            obytes += sizeof(kind);
+            size -= sizeof(kind);
+            switch (kind) {
+                case 0: {
+                    size = 0;
+                    break;
+                }
+                case 1: { // no-op
+                    std::println("    Kind: {}", kind);
+                    continue; // skip to next iteration
+                    break;
+                }
+                case 8: {
+                    uint8_t olen;
+                    std::memcpy(&olen, obytes, sizeof(olen));
+                    obytes += sizeof(olen);
+                    size -= sizeof(olen);
+
+                    olen -= sizeof(olen) + sizeof(kind); // how many bytes in payload
+                    std::println("    Kind: {}\n    Olen: {}", kind, olen);
+                    if (olen < 8) {
+                        throw std::runtime_error("Kind 8 option field is broken");
+                    }
+
+                    uint32_t ststmp;
+                    std::memcpy(&ststmp, obytes, sizeof(ststmp));
+                    obytes += sizeof(ststmp);
+                    size -= sizeof(ststmp);
+                    ststmp = ntohl(ststmp);
+
+                    uint32_t ttstmp;
+                    std::memcpy(&ttstmp, obytes, sizeof(ttstmp));
+                    obytes += sizeof(ttstmp);
+                    size -= sizeof(ttstmp);
+                    ttstmp = ntohl(ttstmp);
+                    std::println("    Sender timestamp: {}\n    Reply timestamp: {}", ststmp, ttstmp);
+                }
+                default: {
+                    std::println("UNSUPPORTED OPTION");
+                    break;
+                }
+            }
+        }
+    }
+
+
     std::println("========");
 }
 
@@ -269,17 +348,17 @@ int main(int argc, char** argv) {
             auto ip_size = ip.hdr.ihl * 4;
             p += ip_size;
             buf_size -= ip_size;
-            print_ip(ip);
+            // print_ip(ip);
             if (ip.hdr.protocol == 6) { // tcp
                 auto tcp = parse_tcp(p, buf_size);
                 p += tcp.hdr.doff * 4;
                 buf_size -= tcp.hdr.doff * 4;
-                print_tcp(tcp);
+                // print_tcp(tcp);
             } else if (ip.hdr.protocol == 17) { // udp
                 auto udp = parse_udp(p, buf_size);
                 p += sizeof(udp);
                 buf_size -= sizeof(udp);
-                print_udp(udp);
+                // print_udp(udp);
             }
         } else if (ntohs(eth.h_proto) == 0x0806) {
             auto arp = parse_arp(p, buf_size);
