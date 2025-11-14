@@ -201,7 +201,6 @@ void print_tcp(tcphdr_f& tcp) {
     std::println("Data offset (in bytes): {}", (doff - 5) * 4);
     std::println("Window: {}", ntohs(tcp.hdr.window));
     std::println("Urg: {}", ntohs(tcp.hdr.urg_ptr));
-    // TODO: OPTIONS
 
     auto options_size = (tcp.hdr.doff * 4) - sizeof(tcphdr);
     if (options_size) {
