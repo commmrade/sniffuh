@@ -6,3 +6,5 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 add_executable(sniffuh src/main.cpp)
+
+target_compile_options(sniffuh PRIVATE -Wall -Wextra)
