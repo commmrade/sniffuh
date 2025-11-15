@@ -1,0 +1,139 @@
+#include "parser.hpp"
+#include <chrono>
+#include <cstring>
+#include <netinet/in.h>
+
+std::unique_ptr<Parser> make_parser(Protocols proto) {
+    switch (proto) {
+        case Protocols::ETH: {
+            return std::make_unique<EthParser>();
+            break;
+        }
+        case Protocols::ARP: {
+            return std::make_unique<ArpParser>();
+            break;
+        }
+        case Protocols::IP: {
+            return std::make_unique<IpParser>();
+            break;
+        }
+        case Protocols::TCP: {
+            return std::make_unique<TcpParser>();
+            break;;
+        }
+        case Protocols::UDP: {
+            return std::make_unique<UdpParser>();
+            break;
+        }
+        default: {
+            throw std::runtime_error("Parser type is not supported");
+            break;
+        }
+    }
+}
+
+Packet parse_packet(std::span<char> bytes) {
+    Packet result;
+    auto parser = make_parser(Protocols::ETH);
+    result.timestamp = std::chrono::system_clock::now();
+    result.plod = parser->parse(bytes);
+    return result;
+}
+
+std::shared_ptr<void> TcpParser::parse(std::span<char> bytes) {
+    auto result = std::make_shared<tcphdr_f>();
+    auto tcphdr_size = sizeof(tcphdr);
+    if (bytes.size() < tcphdr_size) {
+        throw std::runtime_error("Can't parse TCP");
+    }
+    std::memcpy(&result->hdr, bytes.data(), tcphdr_size);
+    bytes = bytes.subspan(tcphdr_size);
+
+    auto options_size = result->hdr.doff * 4 - tcphdr_size;
+    if (bytes.size() < options_size) {
+        throw std::runtime_error("Can't parse TCP Options");
+    }
+    result->options.resize(options_size);
+    std::memcpy(result->options.data(), bytes.data(), options_size);
+
+    // TODO: Continue parsing
+    return result;
+}
+
+std::shared_ptr<void> UdpParser::parse(std::span<char> bytes) {
+    auto result = std::make_shared<udphdr_f>();
+    auto udphdr_size = sizeof(udphdr);
+    if (bytes.size() < udphdr_size) {
+        throw std::runtime_error("Can't parse UDP");
+    }
+    std::memcpy(&result->hdr, bytes.data(), udphdr_size);
+    bytes = bytes.subspan(udphdr_size);
+
+    // TODO: Continue parsing
+    return result;
+}
+
+std::shared_ptr<void> ArpParser::parse(std::span<char> bytes) {
+    auto result = std::make_shared<arphdr_f>();
+    auto arphdr_size = sizeof(arphdr);
+    if (bytes.size() < arphdr_size) {
+        throw std::runtime_error("Can't parse arp");
+    }
+    std::memcpy(&result->hdr, bytes.data(), arphdr_size);
+    bytes = bytes.subspan(arphdr_size);
+
+    if (ntohs(result->hdr.ar_hrd) == 1 && ntohs(result->hdr.ar_pro) == 0x0800) {
+        auto size = sizeof(arphdr_ipv4);
+        result->plod.resize(size);
+        std::memcpy(result->plod.data(), bytes.data(), size);
+    } else {
+        throw std::runtime_error("This arp payload is not supported yet");
+    }
+    // No payload
+    return result;
+}
+
+std::shared_ptr<void> IpParser::parse(std::span<char> bytes) {
+    auto result = std::make_shared<iphdr_f>();
+    auto iphdr_size = sizeof(iphdr);
+    if (bytes.size() < iphdr_size) {
+        throw std::runtime_error("Can't parse IP");
+    }
+
+    std::memcpy(&result->hdr, bytes.data(), iphdr_size);
+    if (result->hdr.version == 6) {
+        throw std::runtime_error("IPV6 is not supported yet");
+    }
+    bytes = bytes.subspan(iphdr_size);
+
+    auto options_size = (result->hdr.ihl * 4) - iphdr_size;
+    if (bytes.size_bytes() < options_size) {
+        throw std::runtime_error("Can't parse IP options");
+    }
+    result->options.resize(options_size);
+    std::memcpy(result->options.data(), bytes.data(), options_size);
+
+    bytes = bytes.subspan(options_size);
+
+    // Call the next parser
+    auto proto = result->hdr.protocol == 6 ? Protocols::TCP : Protocols::UDP; // TODO: Improve
+    auto next_parser = make_parser(proto);
+    result->plod = next_parser->parse(bytes);
+    return result;
+}
+
+std::shared_ptr<void> EthParser::parse(std::span<char> bytes) {
+    auto result = std::make_shared<ethhdr_f>();
+    auto ethhdr_size = sizeof(ethhdr);
+    if (bytes.size() < ethhdr_size) {
+        throw std::runtime_error("Can't parse eth");
+    }
+    std::memcpy(&result->hdr, bytes.data(), ethhdr_size);
+    bytes = bytes.subspan(ethhdr_size);
+
+    // Call next parser
+    auto proto = ntohs(result->hdr.h_proto) == 0x0800 ? Protocols::IP : Protocols::ARP;
+    auto next_parser = make_parser(proto);
+    result->plod = next_parser->parse(bytes);
+    return result;
+}
