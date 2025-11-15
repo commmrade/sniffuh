@@ -1,5 +1,5 @@
 #include "logs.hpp"
-#include "server.hpp"
+#include "sniffer.hpp"
 #include <print>
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
@@ -11,7 +11,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         throw std::runtime_error("Should be ran as root");
     }
 
-    Server serv{vec[1]};
-    serv.sniff_loop();
+    Sniffer s{vec[1]};
+    s.sniff_loop();
     return 0;
 }

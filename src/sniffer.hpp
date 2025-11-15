@@ -3,12 +3,12 @@
 #include <span>
 
 
-class Server {
+class Sniffer {
     int m_sock;
     void setup(std::string_view if_name);
     void process_packet(std::span<char> p);
 public:
-    Server(std::string_view if_name);
-    ~Server();
+    Sniffer(std::string_view if_name);
+    ~Sniffer();
     void sniff_loop();
 };

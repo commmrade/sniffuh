@@ -1,4 +1,4 @@
-#include "server.hpp"
+#include "sniffer.hpp"
 #include <net/if.h>
 #include "parser.hpp"
 #include "logs.hpp"
@@ -21,14 +21,14 @@
 #include <linux/udp.h>
 #include <sys/ioctl.h>
 
-Server::Server(std::string_view if_name) {
+Sniffer::Sniffer(std::string_view if_name) {
     setup(if_name);
 }
-Server::~Server() {
+Sniffer::~Sniffer() {
     close(m_sock);
 }
 
-void Server::setup(std::string_view if_name) {
+void Sniffer::setup(std::string_view if_name) {
     int ret;
     m_sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (m_sock < 0) {
@@ -61,7 +61,7 @@ void Server::setup(std::string_view if_name) {
     }
 }
 
-void Server::process_packet(std::span<char> p) {
+void Sniffer::process_packet(std::span<char> p) {
     auto packet = parse_packet(p);
     ethhdr_f* eth = static_cast<ethhdr_f*>(packet.plod.get());
 
@@ -82,7 +82,7 @@ void Server::process_packet(std::span<char> p) {
     }
 }
 
-void Server::sniff_loop() {
+void Sniffer::sniff_loop() {
     while (true) {
         std::array<char, (1 << 16)> buf;
         ssize_t rd_bytes = recv(m_sock, buf.data(), sizeof(buf), 0);
