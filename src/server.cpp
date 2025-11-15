@@ -1,9 +1,11 @@
 #include "server.hpp"
+#include <net/if.h>
+#include "parser.hpp"
+#include "logs.hpp"
 #include "utils.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
-#include <netinet/in.h>
 #include <span>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -13,7 +15,6 @@
 #include <arpa/inet.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
-#include <net/if.h>
 #include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -61,26 +62,23 @@ void Server::setup(std::string_view if_name) {
 }
 
 void Server::process_packet(std::span<char> p) {
-    auto eth = parse_eth(p);
-    p = p.subspan(sizeof(eth));
-    if (ntohs(eth.h_proto) == 0x0800) {
-        auto ip = parse_ip(p);
-        auto ip_size = ip.hdr.ihl * 4;
-        p = p.subspan(ip_size);
-        print_ip(ip);
-        if (ip.hdr.protocol == 6) { // tcp
-            auto tcp = parse_tcp(p);
-            p = p.subspan(tcp.hdr.doff * 4);
-            print_tcp(tcp);
-        } else if (ip.hdr.protocol == 17) { // udp
-            auto udp = parse_udp(p);
-            p = p.subspan(sizeof(udp));
-            print_udp(udp);
+    auto packet = parse_packet(p);
+    ethhdr_f* eth = static_cast<ethhdr_f*>(packet.plod.get());
+
+    if (ntohs(eth->hdr.h_proto) == static_cast<int>(ethProto::IPv4)) {
+        iphdr_f* ip = static_cast<iphdr_f*>(eth->plod.get());
+        print_ip(*ip);
+
+        if (ip->hdr.protocol == static_cast<int>(ipProto::TCP)) {
+            tcphdr_f* tcp = static_cast<tcphdr_f*>(ip->plod.get());
+            print_tcp(*tcp);
+        } else if (ip->hdr.protocol == static_cast<int>(ipProto::UDP)) {
+            udphdr_f* udp = static_cast<udphdr_f*>(ip->plod.get());
+            print_udp(*udp);
         }
-    } else if (ntohs(eth.h_proto) == 0x0806) {
-        auto arp = parse_arp(p);
-        p = p.subspan(sizeof(arp));
-        print_arp(arp);
+    } else if (ntohs(eth->hdr.h_proto) == static_cast<int>(ethProto::ARP)) {
+        arphdr_f* arp = static_cast<arphdr_f*>(eth->plod.get());
+        print_arp(*arp);
     }
 }
 
