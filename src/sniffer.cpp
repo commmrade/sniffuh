@@ -1,11 +1,13 @@
 #include "sniffer.hpp"
 #include <net/if.h>
+#include "packet.hpp"
 #include "parser.hpp"
 #include "logs.hpp"
 #include "utils.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <print>
 #include <span>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -61,25 +63,13 @@ void Sniffer::setup(std::string_view if_name) {
     }
 }
 
+
+
+
 void Sniffer::process_packet(std::span<char> p) {
     auto packet = parse_packet(p);
-    ethhdr_f* eth = static_cast<ethhdr_f*>(packet.plod.get());
-
-    if (ntohs(eth->hdr.h_proto) == static_cast<int>(ethProto::IPv4)) {
-        iphdr_f* ip = static_cast<iphdr_f*>(eth->plod.get());
-        print_ip(*ip);
-
-        if (ip->hdr.protocol == static_cast<int>(ipProto::TCP)) {
-            tcphdr_f* tcp = static_cast<tcphdr_f*>(ip->plod.get());
-            print_tcp(*tcp);
-        } else if (ip->hdr.protocol == static_cast<int>(ipProto::UDP)) {
-            udphdr_f* udp = static_cast<udphdr_f*>(ip->plod.get());
-            print_udp(*udp);
-        }
-    } else if (ntohs(eth->hdr.h_proto) == static_cast<int>(ethProto::ARP)) {
-        arphdr_f* arp = static_cast<arphdr_f*>(eth->plod.get());
-        print_arp(*arp);
-    }
+    auto output = log_packet(packet);
+    std::println("Packet info: '{}'", output);
 }
 
 void Sniffer::sniff_loop() {

@@ -4,6 +4,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/icmp.h>
 #include <memory>
 #include <linux/if_arp.h>
 #include <vector>
@@ -22,7 +23,10 @@ enum class Protocols {
     ARP,
     IP,
     TCP,
-    UDP
+    UDP,
+    ICMP,
+    HTTP,
+    DNS
 };
 
 struct arphdr_f {
@@ -39,8 +43,6 @@ struct arphdr_ipv4 {
 #pragma pack(pop)
 
 
-
-
 struct iphdr_f {
 	iphdr hdr;
 	std::vector<char> options;
@@ -51,6 +53,10 @@ struct tcphdr_f {
     tcphdr hdr;
     std::vector<char> options;
     std::shared_ptr<void> plod;
+};
+
+struct icmphdr_f {
+    icmphdr hdr;
 };
 
 struct udphdr_f {

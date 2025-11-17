@@ -2,6 +2,8 @@
 #include <chrono>
 #include <cstring>
 #include <netinet/in.h>
+#include <print>
+#include <stdexcept>
 
 std::unique_ptr<Parser> make_parser(Protocols proto) {
     switch (proto) {
@@ -25,6 +27,9 @@ std::unique_ptr<Parser> make_parser(Protocols proto) {
             return std::make_unique<UdpParser>();
             break;
         }
+        case Protocols::ICMP: {
+            return std::make_unique<IcmpParser>();
+        }
         default: {
             throw std::runtime_error("Parser type is not supported");
             break;
@@ -37,6 +42,16 @@ Packet parse_packet(std::span<char> bytes) {
     auto parser = make_parser(Protocols::ETH);
     result.timestamp = std::chrono::system_clock::now();
     result.plod = parser->parse(bytes);
+    return result;
+}
+
+std::shared_ptr<void> IcmpParser::parse(std::span<char> bytes) {
+    auto result = std::make_shared<icmphdr_f>();
+    auto icmphdr_size = sizeof(icmphdr);
+    if (bytes.size() < icmphdr_size) {
+        throw std::runtime_error("Can't parse ICMP");
+    }
+    std::memcpy(&result->hdr, bytes.data(), icmphdr_size);
     return result;
 }
 
@@ -56,7 +71,6 @@ std::shared_ptr<void> TcpParser::parse(std::span<char> bytes) {
     result->options.resize(options_size);
     std::memcpy(result->options.data(), bytes.data(), options_size);
 
-    // TODO: Continue parsing
     return result;
 }
 
@@ -116,7 +130,26 @@ std::shared_ptr<void> IpParser::parse(std::span<char> bytes) {
     bytes = bytes.subspan(options_size);
 
     // Call the next parser
-    auto proto = result->hdr.protocol == 6 ? Protocols::TCP : Protocols::UDP; // TODO: Improve
+    // auto proto = result->hdr.protocol == 6 ? Protocols::TCP : Protocols::UDP; // TODO: Improve
+    Protocols proto{};
+    switch (result->hdr.protocol) {
+        case IPPROTO_ICMP: {
+            proto = Protocols::ICMP;
+            break;
+        }
+        case IPPROTO_TCP: {
+            proto = Protocols::TCP;
+            break;
+        }
+        case IPPROTO_UDP: {
+            proto = Protocols::UDP;
+            break;
+        }
+        default: {
+            std::println("IP Protocol is not supported: {:02x}", result->hdr.protocol);
+            break;
+        }
+    }
     auto next_parser = make_parser(proto);
     result->plod = next_parser->parse(bytes);
     return result;

@@ -5,6 +5,6 @@ project(sniffuh)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
-add_executable(sniffuh src/main.cpp src/sniffer.cpp src/logs.cpp src/parser.cpp)
+add_executable(sniffuh src/main.cpp src/sniffer.cpp src/logs.cpp src/parser.cpp src/logs.cpp)
 
 target_compile_options(sniffuh PRIVATE -Wall -Wextra)

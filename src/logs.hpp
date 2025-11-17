@@ -1,5 +1,7 @@
 #pragma once
 #include "packet.hpp"
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #define TODO(x) throw std::runtime_error(std::format("TODO: {}", x))
 
@@ -10,42 +12,42 @@ struct defer {
         f_();
     }
 };
-
 std::vector<std::string> show_interfaces();
 
-// ethhdr parse_eth(std::span<char> bytes);
 
-// struct arphdr_f { // ONLY FOR IPv4
-//     arphdr hdr;
-//     std::vector<char> plod;
-// };
-// #pragma pack(push, 1)
-// struct arphdr_ipv4 {
-//     unsigned char		ar_sha[ETH_ALEN];	/* sender hardware address	*/
-// 	unsigned char		ar_sip[4];		/* sender IP address		*/
-// 	unsigned char		ar_tha[ETH_ALEN];	/* target hardware address	*/
-// 	unsigned char		ar_tip[4];		/* target IP address		*/
-// };
-// #pragma pack(pop)
+class Logger {
+public:
+    virtual ~Logger() = default;
+    virtual std::string process(std::shared_ptr<void> p) = 0;
+};
 
-// arphdr_f parse_arp(std::span<char> bytes);
-void print_arp(arphdr_f& arp);
+std::unique_ptr<Logger> make_logger(Protocols proto);
+std::string log_packet(Packet& pkt);
 
-// struct iphdr_f {
-// 	iphdr hdr;
-// 	std::vector<char> options;
-// };
+class EthLogger final : public Logger {
+public:
+    std::string process(std::shared_ptr<void> p) override;
+};
 
-// iphdr_f parse_ip(std::span<char> bytes);
-void print_ip(iphdr_f& ip);
+class ArpLogger final : public Logger {
+    std::string process(std::shared_ptr<void> p) override;
+};
 
+class IpLogger final : public Logger {
+public:
+    std::string process(std::shared_ptr<void> p) override;
+};
 
-// struct tcphdr_f {
-//     tcphdr hdr;
-//     std::vector<char> options;
-// };
-// tcphdr_f parse_tcp(std::span<char> bytes);
-void print_tcp(tcphdr_f& tcp);
+class TcpLogger final : public Logger {
+public:
+    std::string process(std::shared_ptr<void> p) override;
+};
 
-// udphdr parse_udp(std::span<char> bytes);
-void print_udp(udphdr_f& udp);
+class UdpLogger final : public Logger {
+public:
+    std::string process(std::shared_ptr<void> p) override;
+};
+
+class IcmpLogger final : public Logger {
+    std::string process(std::shared_ptr<void> p) override;
+};
