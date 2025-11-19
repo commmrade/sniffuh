@@ -6,6 +6,7 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <print>
+#include "utils.hpp"
 
 std::vector<std::string> show_interfaces() {
     int ret;
@@ -25,41 +26,41 @@ std::vector<std::string> show_interfaces() {
     return ifs;
 }
 
-std::string log_packet(Packet& pkt) {
-    auto log = make_logger(Protocols::ETH);
-    std::string r{std::format("Timestamp: {}\n", pkt.timestamp)};
+std::string log_packet(Packet& pkt, LogLevel lvl) {
+    auto log = make_logger(Protocols::ETH, lvl);
+    std::string r = std::format("{}: ", pkt.timestamp);
     r += log->process(pkt.plod);
     return r;
 }
 
-std::unique_ptr<Logger> make_logger(Protocols proto) {
+std::unique_ptr<Logger> make_logger(Protocols proto, LogLevel lvl) {
     switch (proto) {
         case Protocols::ETH: {
-            return std::make_unique<EthLogger>();
+            return std::make_unique<EthLogger>(lvl);
             break;
         }
         case Protocols::ARP: {
-            return std::make_unique<ArpLogger>();
+            return std::make_unique<ArpLogger>(lvl);
             break;
         }
         case Protocols::IP: {
-            return std::make_unique<IpLogger>();
+            return std::make_unique<IpLogger>(lvl);
             break;
         }
         case Protocols::TCP: {
-            return std::make_unique<TcpLogger>();
+            return std::make_unique<TcpLogger>(lvl);
             break;;
         }
         case Protocols::UDP: {
-            return std::make_unique<UdpLogger>();
+            return std::make_unique<UdpLogger>(lvl);
             break;
         }
         case Protocols::ICMP: {
-            return std::make_unique<IcmpLogger>();
+            return std::make_unique<IcmpLogger>(lvl);
             break;
         }
         case Protocols::TLS: {
-            return std::make_unique<TlsLogger>();
+            return std::make_unique<TlsLogger>(lvl);
             break;
         }
         default: {
@@ -72,8 +73,23 @@ std::unique_ptr<Logger> make_logger(Protocols proto) {
 std::string EthLogger::process(std::shared_ptr<void> p) {
     std::string res;
     const ethhdr_f* eth = static_cast<const ethhdr_f*>(p.get());
-    auto proto = ntohs(eth->hdr.h_proto) == 0x0800 ? Protocols::IP : Protocols::ARP;
-    auto next_log = make_logger(proto);
+
+    Protocols proto{};
+    switch (ntohs(eth->hdr.h_proto)) {
+        case 0x0800: {
+            proto = Protocols::IP;
+            break;
+        }
+        case 0x0806: {
+            proto = Protocols::ARP;
+            break;
+        }
+        default: {
+            return res;
+            break;
+        }
+    }
+    auto next_log = make_logger(proto, m_log_lvl);
     res += next_log->process(eth->plod);
     return res;
 }
@@ -82,26 +98,51 @@ std::string ArpLogger::process(std::shared_ptr<void> p) {
     std::string res;
     const arphdr_f* arp = static_cast<const arphdr_f*>(p.get());
 
-    res += std::format("==========\nHardware type: {}\nProtocol type: {:#06x}\nHardware length: {}\nProtocol length: {}\nOperation: {}\n", ntohs(arp->hdr.ar_hrd), ntohs(arp->hdr.ar_pro), arp->hdr.ar_hln, arp->hdr.ar_pln, ntohs(arp->hdr.ar_op));
-    if (ntohs(arp->hdr.ar_hrd) == 1 && ntohs(arp->hdr.ar_pro) == 0x0800) { // mac and ipv4
-        if (arp->plod.size() < sizeof(arphdr_ipv4)) {
-            throw std::runtime_error("ARP payload isn't big enough");
-        }
+    auto op = ntohs(arp->hdr.ar_op);
+    res += std::format("ARP: {}", op == 1 ? "Request " : "Reply ");
+
+    if (ntohs(arp->hdr.ar_hrd) == 1 && ntohs(arp->hdr.ar_pro) == 0x0800) {
         arphdr_ipv4 body{};
         std::memcpy(&body, arp->plod.data(), sizeof(body));
 
-        char addr_buf[INET_ADDRSTRLEN]{};
+        switch (m_log_lvl) {
+        case LogLevel::V: {
+            if (op == 1) { // request
+                char addr_buf[INET_ADDRSTRLEN]{};
+                const char* r = inet_ntop(AF_INET, body.ar_tip, addr_buf, sizeof(addr_buf));
+                assert(r);
+                res += std::format("who is {}; ", addr_buf);
+            } else if (op == 2) {
+                char addr_buf[INET_ADDRSTRLEN]{};
+                const char* r = inet_ntop(AF_INET, body.ar_sip, addr_buf, sizeof(addr_buf));
+                assert(r);
+                res += std::format("{} is at {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}; ", addr_buf,
+                    body.ar_sha[0], body.ar_sha[1], body.ar_sha[2], body.ar_sha[3], body.ar_sha[4], body.ar_sha[5]);
+            }
+            break;
+        }
+        case LogLevel::VV: {
+            res += std::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} -> {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x};\n",
+                body.ar_sha[0], body.ar_sha[1], body.ar_sha[2], body.ar_sha[3], body.ar_sha[4], body.ar_sha[5],
+                body.ar_tha[0], body.ar_tha[1], body.ar_tha[2], body.ar_tha[3], body.ar_tha[4], body.ar_tha[5]
+            );
+            break;
+        }
+        case LogLevel::VVV: {
+            char sip_buf[INET_ADDRSTRLEN]{};
+            char tip_buf[INET_ADDRSTRLEN]{};
+            const char* r = inet_ntop(AF_INET, body.ar_sip, sip_buf, sizeof(sip_buf));
+            assert(r);
+            r = inet_ntop(AF_INET, body.ar_tip, tip_buf, sizeof(tip_buf));
+            assert(r);
 
-        const char* r = inet_ntop(AF_INET, body.ar_sip, addr_buf, sizeof(addr_buf));
-        res += std::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} - Source, ", body.ar_sha[0], body.ar_sha[1], body.ar_sha[2], body.ar_sha[3], body.ar_sha[4], body.ar_sha[5]);
-        res += std::format("Sender IP: {}\n", addr_buf);
-
-        r = inet_ntop(AF_INET, body.ar_tip, addr_buf, sizeof(addr_buf));
-        res += std::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} - Target, ", body.ar_tha[0], body.ar_tha[1], body.ar_tha[2], body.ar_tha[3], body.ar_tha[4], body.ar_tha[5]);
-        res += std::format("Target IP: {}\n==========", addr_buf);
-    } else {
-        res += std::format("***This ARP hardware address and protocol address are not supported***");
+            res += std::format("\n    SIP: {}, SHA: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\n    TIP: {}, THA: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x};\n",
+                sip_buf, body.ar_sha[0], body.ar_sha[1], body.ar_sha[2], body.ar_sha[3], body.ar_sha[4], body.ar_sha[5],
+                tip_buf, body.ar_tha[0], body.ar_tha[1], body.ar_tha[2], body.ar_tha[3], body.ar_tha[4], body.ar_tha[5]);
+        }
+        }
     }
+
     return res;
 }
 
@@ -109,41 +150,91 @@ std::string IpLogger::process(std::shared_ptr<void> p) {
     std::string res;
     const iphdr_f* ip = static_cast<const iphdr_f*>(p.get());
 
-    res += std::format("======== IP\n");
+    char sip_buf[INET_ADDRSTRLEN]{}; // ipv6 not supported yet
+    char tip_buf[INET_ADDRSTRLEN]{};
+    const char* r = inet_ntop(AF_INET, &ip->hdr.saddr, sip_buf, sizeof(sip_buf));
+    assert(r);
+    r = inet_ntop(AF_INET, &ip->hdr.daddr, tip_buf, sizeof(tip_buf));
+    assert(r);
 
-    int ver = ip->hdr.version;
-    int ihl = ip->hdr.ihl;
-    res += std::format("Version: {}\nIHL: {}\nTotal length: {}\nId: {}\nFrag off: {}\nTtl: {}\nProtocol: {}\nCheck: {}\n",
-        ver, ihl, ntohs(ip->hdr.tot_len), ntohs(ip->hdr.id), ntohs(ip->hdr.frag_off), ip->hdr.ttl, ip->hdr.protocol, ntohs(ip->hdr.check));
-
-    char addr_buf[INET_ADDRSTRLEN];
-    const char* r = inet_ntop(AF_INET, &ip->hdr.saddr, addr_buf, sizeof(addr_buf));
-    res += std::format("Source IP: {}, ", addr_buf);
-    r = inet_ntop(AF_INET, &ip->hdr.daddr, addr_buf, sizeof(addr_buf));
-    res += std::format("Destination IP: {}\n", addr_buf);
-
-    res += std::format("========\n");
-
-    Protocols proto{};
-    switch (ip->hdr.protocol) {
-        case IPPROTO_ICMP: {
-            proto = Protocols::ICMP;
-            break;
-        }
-        case IPPROTO_TCP: {
-            proto = Protocols::TCP;
-            break;
-        }
-        case IPPROTO_UDP: {
-            proto = Protocols::UDP;
-            break;
-        }
-        default: {
-            break;
-        }
+    res += "IP: ";
+    switch (m_log_lvl) {
+    case LogLevel::V: {
+        res += std::format("{} -> {}; ", sip_buf, tip_buf);
+        break;
     }
-    auto next_log = make_logger(proto);
-    res += next_log->process(ip->plod);
+    case LogLevel::VV: {
+        res += std::format("Src: {} -> Dest: {}, TTL: {};\n", sip_buf, tip_buf, ip->hdr.ttl, ntohs(ip->hdr.id), ip->hdr.protocol);
+        break;
+    }
+    case LogLevel::VVV: {
+        std::uint16_t flags = ntohs(ip->hdr.frag_off);
+        bool reserved_flag = flags & 0b1000000000000000;
+        bool df_flag = flags & 0b0100000000000000;
+        bool mf_flag = flags & 0b0010000000000000;
+
+        std::string proto{"Unknown"};
+        switch (ip->hdr.protocol) {
+            case IPPROTO_TCP: {
+                proto = "TCP";
+                break;
+            }
+            case IPPROTO_UDP: {
+                proto = "UDP";
+                break;
+            }
+            case IPPROTO_ICMP: {
+                proto = "ICMP";
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+
+        res += std::format("\n    Src: {} -> Dest: {}\n    Total Len: {}, Flags: {}{}{}, TTL: {}\n    Protocol: {}({});\n",
+            sip_buf, tip_buf, ntohs(ip->hdr.tot_len), reserved_flag ? "R" : ".", df_flag ? "D" : ".", mf_flag ? "M" : ".", ip->hdr.ttl,
+            ip->hdr.protocol, proto);
+        break;
+    }
+    }
+
+    // res += std::format("======== IP\n");
+
+    // int ver = ip->hdr.version;
+    // int ihl = ip->hdr.ihl;
+    // res += std::format("Version: {}\nIHL: {}\nTotal length: {}\nId: {}\nFrag off: {}\nTtl: {}\nProtocol: {}\nCheck: {}\n",
+    //     ver, ihl, ntohs(ip->hdr.tot_len), ntohs(ip->hdr.id), ntohs(ip->hdr.frag_off), ip->hdr.ttl, ip->hdr.protocol, ntohs(ip->hdr.check));
+
+    // char addr_buf[INET_ADDRSTRLEN];
+    // const char* r = inet_ntop(AF_INET, &ip->hdr.saddr, addr_buf, sizeof(addr_buf));
+    // res += std::format("Source IP: {}, ", addr_buf);
+    // r = inet_ntop(AF_INET, &ip->hdr.daddr, addr_buf, sizeof(addr_buf));
+    // res += std::format("Destination IP: {}\n", addr_buf);
+
+    // res += std::format("========\n");
+
+    // Protocols proto{};
+    // switch (ip->hdr.protocol) {
+    //     case IPPROTO_ICMP: {
+    //         proto = Protocols::ICMP;
+    //         break;
+    //     }
+    //     case IPPROTO_TCP: {
+    //         proto = Protocols::TCP;
+    //         break;
+    //     }
+    //     case IPPROTO_UDP: {
+    //         proto = Protocols::UDP;
+    //         break;
+    //     }
+    //     default: {
+    //         return res;
+    //         break;
+    //     }
+    // }
+    // auto next_log = make_logger(proto, m_log_lvl);
+    // res += next_log->process(ip->plod);
 
     return res;
 }
@@ -227,7 +318,7 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
 
     if (tcp->plod_proto == Protocols::TLS) {
         if (tcp->plod) {
-            auto logger = make_logger(Protocols::TLS);
+            auto logger = make_logger(Protocols::TLS, m_log_lvl);
             res += logger->process(tcp->plod);
         }
     }

@@ -148,7 +148,7 @@ std::shared_ptr<void> ArpParser::parse(std::span<char> bytes) {
         result->plod.resize(size);
         std::memcpy(result->plod.data(), bytes.data(), size);
     } else {
-        throw std::runtime_error("This arp payload is not supported yet");
+        // ignore
     }
     // No payload
     return result;
