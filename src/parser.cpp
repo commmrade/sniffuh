@@ -1,6 +1,8 @@
 #include "parser.hpp"
+#include "packet.hpp"
 #include <chrono>
 #include <cstring>
+#include <memory>
 #include <netinet/in.h>
 #include <print>
 #include <stdexcept>
@@ -21,7 +23,7 @@ std::unique_ptr<Parser> make_parser(Protocols proto) {
         }
         case Protocols::TCP: {
             return std::make_unique<TcpParser>();
-            break;;
+            break;
         }
         case Protocols::UDP: {
             return std::make_unique<UdpParser>();
@@ -29,6 +31,11 @@ std::unique_ptr<Parser> make_parser(Protocols proto) {
         }
         case Protocols::ICMP: {
             return std::make_unique<IcmpParser>();
+            break;
+        }
+        case Protocols::TLS: {
+            return std::make_unique<TlsParser>();
+            break;
         }
         default: {
             throw std::runtime_error("Parser type is not supported");
@@ -42,6 +49,26 @@ Packet parse_packet(std::span<char> bytes) {
     auto parser = make_parser(Protocols::ETH);
     result.timestamp = std::chrono::system_clock::now();
     result.plod = parser->parse(bytes);
+    return result;
+}
+
+std::shared_ptr<void> TlsParser::parse(std::span<char> bytes) {
+    auto result = std::make_shared<tlsrecords>();
+    auto tlsrechdr_size = sizeof(tlsrecordhdr);
+    while (bytes.size()) {
+        tlsrecordhdr hdr;
+        if (bytes.size() < tlsrechdr_size) {
+            break;
+        }
+        std::memcpy(&hdr, bytes.data(), tlsrechdr_size);
+
+        auto record_plod_size = hdr.length - tlsrechdr_size;
+        if (bytes.size() < record_plod_size) {
+            break;
+        }
+        result->records.emplace_back(hdr);
+        bytes = bytes.subspan(record_plod_size + tlsrechdr_size);
+    }
     return result;
 }
 
@@ -70,7 +97,27 @@ std::shared_ptr<void> TcpParser::parse(std::span<char> bytes) {
     }
     result->options.resize(options_size);
     std::memcpy(result->options.data(), bytes.data(), options_size);
+    bytes = bytes.subspan(options_size);
 
+/*0x14 	20 	ChangeCipherSpec
+0x15 	21 	Alert
+0x16 	22 	Handshake
+0x17 	23 	Application
+0x18 */
+
+    // std::println("TLS first byte: {:#02x}", *bytes.begin());
+    if (bytes.size()) {
+        auto first_byte = *bytes.begin();
+        if ((first_byte >= 0x14 && first_byte <= 0x18) || (ntohs(result->hdr.source) == 443 || ntohs(result->hdr.dest) == 443)) {
+            auto tls_parser = make_parser(Protocols::TLS);
+            auto plod = tls_parser->parse(bytes);
+
+            result->plod = std::move(plod);
+            result->plod_proto = Protocols::TLS;
+        } else {
+            // Ignore for now (or forever)
+        }
+    }
     return result;
 }
 

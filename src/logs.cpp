@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <cassert>
 #include <cstring>
+#include <format>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <print>
@@ -55,6 +56,11 @@ std::unique_ptr<Logger> make_logger(Protocols proto) {
         }
         case Protocols::ICMP: {
             return std::make_unique<IcmpLogger>();
+            break;
+        }
+        case Protocols::TLS: {
+            return std::make_unique<TlsLogger>();
+            break;
         }
         default: {
             throw std::runtime_error("Parser type is not supported");
@@ -219,6 +225,12 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
     }
     res += std::format("========\n");
 
+    if (tcp->plod_proto == Protocols::TLS) {
+        if (tcp->plod) {
+            auto logger = make_logger(Protocols::TLS);
+            res += logger->process(tcp->plod);
+        }
+    }
     return res;
 }
 
@@ -246,3 +258,12 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
 
     return res;
 }
+
+ std::string TlsLogger::process(std::shared_ptr<void> p) {
+     std::string res;
+     const tlsrecords* tls_rec = static_cast<const tlsrecords*>(p.get());
+     for (const auto& rec : tls_rec->records) {
+         res += std::format("===== TLS RECORD\n    Content type: {:#02x}, Legacy version: {:#04x}, Length: {}\n=====", rec.content_type, ntohs(rec.version), ntohs(rec.length));
+     }
+     return res;
+ }

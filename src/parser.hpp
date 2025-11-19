@@ -9,6 +9,10 @@ public:
     virtual ~Parser() = default;
 };
 
+class TlsParser final : public Parser {
+public:
+    std::shared_ptr<void> parse(std::span<char> bytes) override;
+};
 class IcmpParser final : public Parser {
 public:
     std::shared_ptr<void> parse(std::span<char> bytes) override;

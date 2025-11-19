@@ -51,3 +51,7 @@ public:
 class IcmpLogger final : public Logger {
     std::string process(std::shared_ptr<void> p) override;
 };
+
+class TlsLogger final : public Logger {
+    std::string process(std::shared_ptr<void> p) override;
+};

@@ -8,6 +8,7 @@
 #include <memory>
 #include <linux/if_arp.h>
 #include <vector>
+#include <linux/tls.h>
 
 struct Packet {
     std::chrono::time_point<std::chrono::system_clock> timestamp;
@@ -25,8 +26,7 @@ enum class Protocols {
     TCP,
     UDP,
     ICMP,
-    HTTP,
-    DNS
+    TLS
 };
 
 struct arphdr_f {
@@ -52,6 +52,8 @@ struct iphdr_f {
 struct tcphdr_f {
     tcphdr hdr;
     std::vector<char> options;
+
+    Protocols plod_proto{Protocols::TLS};
     std::shared_ptr<void> plod;
 };
 
@@ -62,4 +64,14 @@ struct icmphdr_f {
 struct udphdr_f {
     udphdr hdr;
     std::shared_ptr<void> plod;
+};
+
+struct tlsrecordhdr {
+    uint8_t content_type;
+    uint16_t version;
+    uint16_t length;
+};
+
+struct tlsrecords {
+    std::vector<tlsrecordhdr> records;
 };
