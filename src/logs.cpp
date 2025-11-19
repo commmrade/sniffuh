@@ -28,7 +28,21 @@ std::vector<std::string> show_interfaces() {
 
 std::string log_packet(Packet& pkt, LogLevel lvl) {
     auto log = make_logger(Protocols::ETH, lvl);
-    std::string r = std::format("{}: ", pkt.timestamp);
+
+    std::string r;
+    switch (lvl) {
+    case LogLevel::V: {
+        r += std::format("{}: ", pkt.timestamp);
+        break;
+    }
+    case LogLevel::VV: {
+        r += std::format("{}:\n", pkt.timestamp);
+        break;
+    }
+    case LogLevel::VVV: {
+        r += std::format("{}:\n", pkt.timestamp);
+    }
+    }
     r += log->process(pkt.plod);
     return r;
 }
@@ -199,42 +213,27 @@ std::string IpLogger::process(std::shared_ptr<void> p) {
     }
     }
 
-    // res += std::format("======== IP\n");
-
-    // int ver = ip->hdr.version;
-    // int ihl = ip->hdr.ihl;
-    // res += std::format("Version: {}\nIHL: {}\nTotal length: {}\nId: {}\nFrag off: {}\nTtl: {}\nProtocol: {}\nCheck: {}\n",
-    //     ver, ihl, ntohs(ip->hdr.tot_len), ntohs(ip->hdr.id), ntohs(ip->hdr.frag_off), ip->hdr.ttl, ip->hdr.protocol, ntohs(ip->hdr.check));
-
-    // char addr_buf[INET_ADDRSTRLEN];
-    // const char* r = inet_ntop(AF_INET, &ip->hdr.saddr, addr_buf, sizeof(addr_buf));
-    // res += std::format("Source IP: {}, ", addr_buf);
-    // r = inet_ntop(AF_INET, &ip->hdr.daddr, addr_buf, sizeof(addr_buf));
-    // res += std::format("Destination IP: {}\n", addr_buf);
-
-    // res += std::format("========\n");
-
-    // Protocols proto{};
-    // switch (ip->hdr.protocol) {
-    //     case IPPROTO_ICMP: {
-    //         proto = Protocols::ICMP;
-    //         break;
-    //     }
-    //     case IPPROTO_TCP: {
-    //         proto = Protocols::TCP;
-    //         break;
-    //     }
-    //     case IPPROTO_UDP: {
-    //         proto = Protocols::UDP;
-    //         break;
-    //     }
-    //     default: {
-    //         return res;
-    //         break;
-    //     }
-    // }
-    // auto next_log = make_logger(proto, m_log_lvl);
-    // res += next_log->process(ip->plod);
+    Protocols proto{};
+    switch (ip->hdr.protocol) {
+        case IPPROTO_ICMP: {
+            proto = Protocols::ICMP;
+            break;
+        }
+        case IPPROTO_TCP: {
+            proto = Protocols::TCP;
+            break;
+        }
+        case IPPROTO_UDP: {
+            proto = Protocols::UDP;
+            break;
+        }
+        default: {
+            return res;
+            break;
+        }
+    }
+    auto next_log = make_logger(proto, m_log_lvl);
+    res += next_log->process(ip->plod);
 
     return res;
 }
@@ -244,77 +243,79 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
     std::string res;
     const tcphdr_f* tcp = static_cast<const tcphdr_f*>(p.get());
 
-    res += std::format("======== TCP****\n");
-    res += std::format("Source port: {}, ", ntohs(tcp->hdr.source));
-    res += std::format("Dest port: {}\n", ntohs(tcp->hdr.dest));
-    res += std::format("Seq Num: {}, ", ntohl(tcp->hdr.seq));
-    res += std::format("Ack Num: {}\n", ntohl(tcp->hdr.ack_seq));
-    auto doff = tcp->hdr.doff;
-    res += std::format("Data offset (in bytes): {}, ", (doff - 5) * 4);
-    res += std::format("Window: {}, ", ntohs(tcp->hdr.window));
-    res += std::format("Urg: {}\n", ntohs(tcp->hdr.urg_ptr));
+    res += "TCP: ";
+    switch (m_log_lvl) {
+    case LogLevel::V: {
+        res += std::format("    SPort: {}, DPort: {}, Seq: {}, Ack: {}; ", ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq));
+        break;
+    }
+    case LogLevel::VV: {
+        // TODO: Print ackn onyl when ack bit is set
+        res += std::format("\n    SPort: {}, DPort: {}, Seq: {}, Ack: {}, Win: {};\n",
+            ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq),
+            ntohs(tcp->hdr.window));
+        break;
+    }
+    case LogLevel::VVV: {
+        res += std::format("\n    SPort: {}, DPort: {}\n    Seq: {}, Ack: {}, Win: {}\n    Options: ",
+            ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq), ntohs(tcp->hdr.window));
 
-    auto options_size = (tcp->hdr.doff * 4) - sizeof(tcphdr);
-    if (options_size) {
-        res += std::format("Options:\n");
-        auto* obytes = tcp->options.data();
-        auto size = tcp->options.size();
+        auto options_size = (tcp->hdr.doff * 4) - sizeof(tcphdr);
+        if (options_size) {
+            res += "[";
+            // auto* obytes = tcp->options.data();
+            std::span<const char> obytes{tcp->options};
+            // auto size = tcp->options.size();
 
-        while (size) {
-            uint8_t kind;
-            std::memcpy(&kind, obytes, sizeof(kind));
-            obytes += sizeof(kind);
-            size -= sizeof(kind);
-            switch (kind) {
-                case 0: {
-                    size = 0;
-                    break;
-                }
-                case 1: { // no-op
-                    res += std::format("    Kind: {}\n", kind);
-                    continue; // skip to next iteration
-                    break;
-                }
-                case 8: {
-                    uint8_t olen;
-                    std::memcpy(&olen, obytes, sizeof(olen));
-                    obytes += sizeof(olen);
-                    size -= sizeof(olen);
-                    olen -= sizeof(olen) + sizeof(kind); // how many bytes in payload
-
-                    res += std::format("    Kind: {}, Olen: {}\n", kind, olen);
-                    if (olen < 8) {
-                        throw std::runtime_error("Kind 8 option field is broken");
+            while (obytes.size()) {
+                uint8_t kind;
+                std::memcpy(&kind, obytes.data(), sizeof(kind));
+                obytes = obytes.subspan(sizeof(kind));
+                switch (kind) {
+                    case 0: {
+                        obytes = {};
+                        break;
                     }
-
-                    uint32_t ststmp;
-                    std::memcpy(&ststmp, obytes, sizeof(ststmp));
-                    obytes += sizeof(ststmp);
-                    size -= sizeof(ststmp);
-                    ststmp = ntohl(ststmp);
-
-                    uint32_t ttstmp;
-                    std::memcpy(&ttstmp, obytes, sizeof(ttstmp));
-                    obytes += sizeof(ttstmp);
-                    size -= sizeof(ttstmp);
-                    ttstmp = ntohl(ttstmp);
-                    res += std::format("    Sender timestamp: {}, Reply timestamp: {}\n", ststmp, ttstmp);
-
-                    olen -= sizeof(ststmp) + sizeof(ttstmp);
-                    if (olen < 0) {
-                        throw std::runtime_error("Packet is corrupted");
+                    case 1: { // no-op
+                        res += "no-op, ";
+                        continue; // skip to next iteration
+                        break;
                     }
-                    obytes += olen;
-                    size -= olen;
-                    break;
-                }
-                default: {
-                    break;
+                    case 8: {
+                        uint8_t olen;
+                        std::memcpy(&olen, obytes.data(), sizeof(olen));
+                        obytes = obytes.subspan(sizeof(olen));
+                        olen -= sizeof(olen) + sizeof(kind);
+
+                        uint32_t ststmp;
+                        std::memcpy(&ststmp, obytes.data(), sizeof(ststmp));
+                        obytes = obytes.subspan(sizeof(ststmp));
+                        ststmp = ntohl(ststmp);
+
+                        uint32_t ttstmp;
+                        std::memcpy(&ttstmp, obytes.data(), sizeof(ttstmp));
+                        obytes = obytes.subspan(sizeof(ttstmp));
+                        ttstmp = ntohl(ttstmp);
+                        res += std::format("Ts [{}][{}], ", ststmp, ttstmp);
+
+                        olen -= sizeof(ststmp) + sizeof(ttstmp);
+                        if (olen < 0) {
+                            throw std::runtime_error("Packet is corrupted");
+                        }
+                        obytes = obytes.subspan(olen);
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
                 }
             }
         }
+        res.erase(res.end() - 2, res.end());
+        res += "];\n";
+        break;
     }
-    res += std::format("========\n");
+    }
 
     if (tcp->plod_proto == Protocols::TLS) {
         if (tcp->plod) {
