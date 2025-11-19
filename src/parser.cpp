@@ -78,7 +78,7 @@ std::shared_ptr<void> TlsParser::parse(std::span<char> bytes) {
 
 std::shared_ptr<void> IcmpParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<icmphdr_f>();
-    auto icmphdr_size = sizeof(icmphdr);
+    constexpr auto icmphdr_size = sizeof(icmphdr);
     if (bytes.size() < icmphdr_size) {
         throw std::runtime_error("Can't parse ICMP");
     }
@@ -88,7 +88,7 @@ std::shared_ptr<void> IcmpParser::parse(std::span<char> bytes) {
 
 std::shared_ptr<void> TcpParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<tcphdr_f>();
-    auto tcphdr_size = sizeof(tcphdr);
+    constexpr auto tcphdr_size = sizeof(tcphdr);
     if (bytes.size() < tcphdr_size) {
         throw std::runtime_error("Can't parse TCP");
     }
@@ -127,7 +127,7 @@ std::shared_ptr<void> TcpParser::parse(std::span<char> bytes) {
 
 std::shared_ptr<void> UdpParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<udphdr_f>();
-    auto udphdr_size = sizeof(udphdr);
+    constexpr auto udphdr_size = sizeof(udphdr);
     if (bytes.size() < udphdr_size) {
         throw std::runtime_error("Can't parse UDP");
     }
@@ -140,7 +140,7 @@ std::shared_ptr<void> UdpParser::parse(std::span<char> bytes) {
 
 std::shared_ptr<void> ArpParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<arphdr_f>();
-    auto arphdr_size = sizeof(arphdr);
+    constexpr auto arphdr_size = sizeof(arphdr);
     if (bytes.size() < arphdr_size) {
         throw std::runtime_error("Can't parse arp");
     }
@@ -148,7 +148,7 @@ std::shared_ptr<void> ArpParser::parse(std::span<char> bytes) {
     bytes = bytes.subspan(arphdr_size);
 
     if (ntohs(result->hdr.ar_hrd) == 1 && ntohs(result->hdr.ar_pro) == 0x0800) {
-        auto size = sizeof(arphdr_ipv4);
+        constexpr auto size = sizeof(arphdr_ipv4);
         result->plod.resize(size);
         std::memcpy(result->plod.data(), bytes.data(), size);
     } else {
@@ -160,7 +160,7 @@ std::shared_ptr<void> ArpParser::parse(std::span<char> bytes) {
 
 std::shared_ptr<void> IpParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<iphdr_f>();
-    auto iphdr_size = sizeof(iphdr);
+    constexpr auto iphdr_size = sizeof(iphdr);
     if (bytes.size() < iphdr_size) {
         throw std::runtime_error("Can't parse IP");
     }
@@ -208,7 +208,7 @@ std::shared_ptr<void> IpParser::parse(std::span<char> bytes) {
 
 std::shared_ptr<void> EthParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<ethhdr_f>();
-    auto ethhdr_size = sizeof(ethhdr);
+    constexpr auto ethhdr_size = sizeof(ethhdr);
     if (bytes.size() < ethhdr_size) {
         throw std::runtime_error("Can't parse eth");
     }
