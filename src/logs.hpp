@@ -14,15 +14,16 @@ struct defer {
 };
 std::vector<std::string> show_interfaces();
 
+class Logger;
+
+std::unique_ptr<Logger> make_logger(Protocols proto);
+std::string log_packet(Packet& pkt);
 
 class Logger {
 public:
     virtual ~Logger() = default;
     virtual std::string process(std::shared_ptr<void> p) = 0;
 };
-
-std::unique_ptr<Logger> make_logger(Protocols proto);
-std::string log_packet(Packet& pkt);
 
 class EthLogger final : public Logger {
 public:
