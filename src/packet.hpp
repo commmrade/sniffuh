@@ -68,11 +68,13 @@ struct udphdr_f {
     std::shared_ptr<void> plod;
 };
 
+#pragma pack(push, 1)
 struct tlsrecordhdr {
     uint8_t content_type;
     uint16_t version;
     uint16_t length;
 };
+#pragma pack(pop)
 
 struct tlsrecords {
     std::vector<tlsrecordhdr> records;

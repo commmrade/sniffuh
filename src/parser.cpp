@@ -55,7 +55,6 @@ Packet parse_packet(std::span<char> bytes) {
 std::shared_ptr<void> TlsParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<tlsrecords>();
     constexpr size_t hdr_size = sizeof(tlsrecordhdr);
-    std::println("PArisng tls");
     while (!bytes.empty()) {
         if (bytes.size() < hdr_size)
             break;
