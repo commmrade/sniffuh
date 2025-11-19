@@ -66,7 +66,7 @@ void Sniffer::setup(std::string_view if_name) {
 
 void Sniffer::process_packet(std::span<char> p) {
     auto packet = parse_packet(p);
-    auto output = log_packet(packet, LogLevel::VVV);
+    auto output = log_packet(packet, LogLevel::V);
     std::println("{}", output);
 }
 

@@ -246,12 +246,12 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
     res += "TCP: ";
     switch (m_log_lvl) {
     case LogLevel::V: {
-        res += std::format("    SPort: {}, DPort: {}, Seq: {}, Ack: {}; ", ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq));
+        res += std::format("SPort: {}, DPort: {}, Seq: {}, Ack: {}; ", ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq));
         break;
     }
     case LogLevel::VV: {
         // TODO: Print ackn onyl when ack bit is set
-        res += std::format("\n    SPort: {}, DPort: {}, Seq: {}, Ack: {}, Win: {};\n",
+        res += std::format("SPort: {}, DPort: {}, Seq: {}, Ack: {}, Win: {};\n",
             ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq),
             ntohs(tcp->hdr.window));
         break;
@@ -331,12 +331,20 @@ std::string UdpLogger::process(std::shared_ptr<void> p) {
     std::string res;
     const udphdr_f* udp = static_cast<udphdr_f*>(p.get());
 
-    res += std::format("======= UDP******\n");
-    res += std::format("Source port: {}, ", ntohs(udp->hdr.source));
-    res += std::format("Dest port: {}\n", ntohs(udp->hdr.dest));
-    res += std::format("Length: {}\n", ntohs(udp->hdr.len));
-    res += std::format("=======\n");
-
+    res += "UDP: ";
+    switch (m_log_lvl) {
+    case LogLevel::V: {
+        res += std::format("SPort: {}, DPort: {}, Len: {}; ", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
+    }
+    case LogLevel::VV: {
+        res += std::format("SPort: {}, DPort: {}, Len: {}; \n", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
+        break;
+    }
+    case LogLevel::VVV: {
+        res += std::format("\n    SPort: {}, DPort: {}\n    Len: {}; \n", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
+        break;
+    }
+    }
     return res;
 }
 
@@ -344,18 +352,80 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
     std::string res;
     const icmphdr_f* icmp = static_cast<const icmphdr_f*>(p.get());
 
-    res += std::format("===== ICMP*****\n");
-    res += std::format("Type: {}\nCode: {}\nChecksum: {:#04x}\n", icmp->hdr.type, icmp->hdr.code, ntohs(icmp->hdr.checksum));
-    res += std::format("=====");
-
+    res += "ICMP: ";
+    std::string type;
+    switch (icmp->hdr.type) {
+        case 8: {
+            type = "echo request";
+        }
+        case 0: {
+            type = "echo reply";
+        }
+    }
+    switch (m_log_lvl) {
+    case LogLevel::V: {
+        res += std::format("{}, code: {}; ", type, icmp->hdr.code);
+        break;
+    }
+    case LogLevel::VV: {
+        res += std::format("{}, code: {};\n", type, icmp->hdr.code);
+        break;
+    }
+    case LogLevel::VVV: {
+        res += std::format("\n    {}, code: {}; ", type, icmp->hdr.code);
+        break;
+    }
+    }
     return res;
 }
 
  std::string TlsLogger::process(std::shared_ptr<void> p) {
      std::string res;
+
+
      const tlsrecords* tls_rec = static_cast<const tlsrecords*>(p.get());
+     if (tls_rec->records.empty()) {
+         return res;
+     }
+
      for (const auto& rec : tls_rec->records) {
-         res += std::format("===== TLS RECORD\n    Content type: {:#02x}, Legacy version: {:#04x}, Length: {}\n=====", rec.content_type, ntohs(rec.version), ntohs(rec.length));
+        switch (m_log_lvl) {
+        case LogLevel::V: {
+            res += std::format("Content type: {:#02x}; ", rec.content_type);
+            break;
+        }
+        case LogLevel::VV: {
+            res += std::format("Content type: {:#02x}, Version: {:#04x}, Length: {};\n", rec.content_type, ntohs(rec.version), ntohs(rec.length));
+            break;
+        }
+        case LogLevel::VVV: {
+            std::string ctype;
+            switch (rec.content_type) {
+                case 0x14: {
+                    ctype = "ChangeCipherSpec";
+                    break;
+                }
+                case 0x15: {
+                    ctype = "Alert";
+                    break;
+                }
+                case 0x16: {
+                    ctype = "Handshake";
+                    break;
+                }
+                case 0x17: {
+                    ctype = "Application";
+                    break;
+                }
+                case 0x18: {
+                    ctype = "Heartbeat";
+                    break;
+                }
+            }
+            res += std::format("    Content type: {:#02x}({}), Version: {:#04x}, Length: {};\n", rec.content_type, ctype, ntohs(rec.version), ntohs(rec.length));
+            break;
+        }
+        }
      }
      return res;
  }

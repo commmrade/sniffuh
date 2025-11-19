@@ -54,23 +54,28 @@ Packet parse_packet(std::span<char> bytes) {
 
 std::shared_ptr<void> TlsParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<tlsrecords>();
-    auto tlsrechdr_size = sizeof(tlsrecordhdr);
-    while (bytes.size()) {
-        tlsrecordhdr hdr;
-        if (bytes.size() < tlsrechdr_size) {
+    constexpr size_t hdr_size = sizeof(tlsrecordhdr);
+    std::println("PArisng tls");
+    while (!bytes.empty()) {
+        if (bytes.size() < hdr_size)
             break;
-        }
-        std::memcpy(&hdr, bytes.data(), tlsrechdr_size);
 
-        auto record_plod_size = hdr.length - tlsrechdr_size;
-        if (bytes.size() < record_plod_size) {
+        tlsrecordhdr hdr;
+        std::memcpy(&hdr, bytes.data(), hdr_size);
+
+        uint16_t payload_size = ntohs(hdr.length);
+
+        if (bytes.size() < hdr_size + payload_size)
             break;
-        }
+
         result->records.emplace_back(hdr);
-        bytes = bytes.subspan(record_plod_size + tlsrechdr_size);
+
+        bytes = bytes.subspan(hdr_size + payload_size);
     }
+
     return result;
 }
+
 
 std::shared_ptr<void> IcmpParser::parse(std::span<char> bytes) {
     auto result = std::make_shared<icmphdr_f>();
