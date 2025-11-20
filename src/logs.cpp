@@ -295,7 +295,7 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
 
                         res += std::format("Ts [{}][{}], ", ts.ststmp, ts.ttstmp);
 
-                        int pad_len = ts.olen - (sizeof(tcpoption_ts::ststmp) + sizeof(tcpoption_ts::ttstmp));
+                        int pad_len = ts.olen - (sizeof(tcpoption_ts::ststmp) + sizeof(tcpoption_ts::ttstmp) + sizeof(kind) + sizeof(ts.olen));
                         if (pad_len <= 0) {
                             break;
                         }
