@@ -1,5 +1,7 @@
 #include "sniffer.hpp"
+#include <chrono>
 #include <net/if.h>
+#include <linux/in6.h>
 #include "packet.hpp"
 #include "parser.hpp"
 #include "logs.hpp"
@@ -62,7 +64,6 @@ void Sniffer::setup(std::string_view if_name) {
         throw std::runtime_error("Could not bind");
     }
 }
-
 
 void Sniffer::process_packet(std::span<char> p) {
     auto packet = parse_packet(p);
