@@ -4,8 +4,10 @@
 #include <cstring>
 #include <format>
 #include <ifaddrs.h>
+#include <linux/tcp.h>
 #include <netinet/in.h>
 #include <print>
+#include "packet.hpp"
 #include "utils.hpp"
 
 std::vector<std::string> show_interfaces() {
@@ -260,8 +262,8 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
         res += std::format("\n    SPort: {}, DPort: {}\n    Seq: {}, Ack: {}, Win: {}\n    Options: ",
             ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq), ntohs(tcp->hdr.window));
 
-        auto options_size = (tcp->hdr.doff * 4) - sizeof(tcphdr);
-        if (options_size) {
+        std::println("Options size: {}, Options vec size: {}", tcp->hdr.doff * 4 - sizeof(tcphdr), tcp->options.size());
+        if (tcp->options.size()) {
             res += "[";
             // auto* obytes = tcp->options.data();
             std::span<const char> obytes{tcp->options};
@@ -282,27 +284,44 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
                         break;
                     }
                     case 8: {
-                        uint8_t olen;
-                        std::memcpy(&olen, obytes.data(), sizeof(olen));
-                        obytes = obytes.subspan(sizeof(olen));
-                        olen -= sizeof(olen) + sizeof(kind);
-
-                        uint32_t ststmp;
-                        std::memcpy(&ststmp, obytes.data(), sizeof(ststmp));
-                        obytes = obytes.subspan(sizeof(ststmp));
-                        ststmp = ntohl(ststmp);
-
-                        uint32_t ttstmp;
-                        std::memcpy(&ttstmp, obytes.data(), sizeof(ttstmp));
-                        obytes = obytes.subspan(sizeof(ttstmp));
-                        ttstmp = ntohl(ttstmp);
-                        res += std::format("Ts [{}][{}], ", ststmp, ttstmp);
-
-                        olen -= sizeof(ststmp) + sizeof(ttstmp);
-                        if (olen < 0) {
-                            throw std::runtime_error("Packet is corrupted");
+                        constexpr auto ts_option_size = sizeof(tcpoption_ts);
+                        tcpoption_ts ts;
+                        if (obytes.size() < ts_option_size) {
+                            break;
                         }
-                        obytes = obytes.subspan(olen);
+                        // It works only if option length takes option payoad into account, without kind and length itself
+                        std::memcpy(&ts, obytes.data(), ts_option_size);
+                        obytes = obytes.subspan(ts_option_size);
+
+                        res += std::format("Ts [{}][{}], ", ts.ststmp, ts.ttstmp);
+
+                        int pad_len = ts.olen - (sizeof(tcpoption_ts::ststmp) + sizeof(tcpoption_ts::ttstmp));
+                        if (pad_len <= 0) {
+                            break;
+                        }
+                        obytes = obytes.subspan(pad_len); // Offset when there is padding
+                        // uint8_t olen;
+                        // std::memcpy(&olen, obytes.data(), sizeof(olen));
+                        // obytes = obytes.subspan(sizeof(olen));
+                        // olen -= sizeof(olen) + sizeof(kind);
+
+                        // uint32_t ststmp;
+                        // std::memcpy(&ststmp, obytes.data(), sizeof(ststmp));
+                        // obytes = obytes.subspan(sizeof(ststmp));
+                        // ststmp = ntohl(ststmp);
+
+                        // uint32_t ttstmp;
+                        // std::memcpy(&ttstmp, obytes.data(), sizeof(ttstmp));
+                        // obytes = obytes.subspan(sizeof(ttstmp));
+                        // ttstmp = ntohl(ttstmp);
+                        // res += std::format("Ts [{}][{}], ", ts.ststmp, ts.ttstmp);
+
+                        // olen -= sizeof(ststmp) + sizeof(ttstmp);
+                        // if (olen < 0) {
+                        //     throw std::runtime_error("Packet is corrupted");
+                        // }
+                        // obytes = obytes.subspan(olen);
+
                         break;
                     }
                     default: {

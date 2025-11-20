@@ -57,6 +57,13 @@ struct tcphdr_f {
     std::shared_ptr<void> plod;
 };
 
+#pragma pack(push, 1)
+struct tcpoption_ts {
+    std::uint8_t olen;
+    std::uint32_t ststmp;
+    std::uint32_t ttstmp;
+};
+#pragma pack(pop)
 
 
 struct icmphdr_f {
