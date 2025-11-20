@@ -262,7 +262,6 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
         res += std::format("\n    SPort: {}, DPort: {}\n    Seq: {}, Ack: {}, Win: {}\n    Options: ",
             ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq), ntohs(tcp->hdr.window));
 
-        std::println("Options size: {}, Options vec size: {}", tcp->hdr.doff * 4 - sizeof(tcphdr), tcp->options.size());
         if (tcp->options.size()) {
             res += "[";
             // auto* obytes = tcp->options.data();
