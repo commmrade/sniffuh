@@ -49,7 +49,7 @@ std::pair<Packet, Entry> parse_packet(std::span<char> bytes) {
     Entry entry;
     auto parser = make_parser(Protocols::ETH);
     result.timestamp = std::chrono::system_clock::now();
-    entry.ts = result.timestamp;
+    entry.ts = std::chrono::system_clock::now();
     result.plod = parser->parse(bytes, entry);
     return {result, entry};
 }
@@ -222,20 +222,42 @@ std::shared_ptr<void> IpParser::parse(std::span<char> bytes, Entry& entry) {
 
 std::shared_ptr<void> EthParser::parse(std::span<char> bytes, Entry& entry) {
     auto result = std::make_shared<ethhdr_f>();
+    // TODO: Implement parsing logic for Ethernet different header types
     constexpr auto ethhdr_size = sizeof(ethhdr);
     if (bytes.size() < ethhdr_size) {
+        return {};
         throw std::runtime_error("Can't parse eth");
     }
     std::memcpy(&result->hdr, bytes.data(), ethhdr_size);
+    // std::println("If length?: {}", ntohs(result->hdr.h_proto));
+    if (ntohs(result->hdr.h_proto) == ETH_P_8021Q) {
+        bytes = bytes.subspan(sizeof(result->hdr.h_source) + sizeof(result->hdr.h_dest) + 2); // 2 for vlan tag part
+        std::memcpy(&result->hdr.h_proto, bytes.data(), sizeof(result->hdr.h_proto));
+        bytes = bytes.subspan(sizeof(result->hdr.h_proto));
+    } else {
+        bytes = bytes.subspan(ethhdr_size);
+    }
 
     std::memcpy(entry.shaddr.data(), &result->hdr.h_source, sizeof(result->hdr.h_source));
     std::memcpy(entry.thaddr.data(), &result->hdr.h_dest, sizeof(result->hdr.h_dest));
     entry.eth_proto = result->hdr.h_proto;
 
-    bytes = bytes.subspan(ethhdr_size);
-
     // Call next parser
-    auto proto = ntohs(result->hdr.h_proto) == 0x0800 ? Protocols::IP : Protocols::ARP;
+    Protocols proto{};
+    switch (ntohs(result->hdr.h_proto)) {
+        case ETH_P_IP: {
+            proto = Protocols::IP;
+            break;
+        }
+        case ETH_P_ARP: {
+            proto = Protocols::ARP;
+            break;
+        }
+        default: {
+            return {};
+            break;
+        }
+    }
     auto next_parser = make_parser(proto);
     result->plod = next_parser->parse(bytes, entry);
     return result;

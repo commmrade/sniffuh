@@ -1,6 +1,6 @@
+#include <net/if.h>
 #include "sniffer.hpp"
 #include <chrono>
-#include <net/if.h>
 #include <linux/in6.h>
 #include "packet.hpp"
 #include "parser.hpp"
@@ -90,9 +90,12 @@ static void print_entry(Entry& en) {
 
 void Sniffer::process_packet(std::span<char> p) {
     auto packet = parse_packet(p);
-    auto output = log_packet(packet.first, LogLevel::VVV);
-    // std::println("{}", output);
-    print_entry(packet.second);
+    if (packet.first.plod) {
+        auto output = log_packet(packet.first, LogLevel::VVV);
+        std::println("{}", output);
+        m_writer.add(packet.second);
+    }
+    // print_entry(packet.second);
 }
 
 void Sniffer::sniff_loop() {
