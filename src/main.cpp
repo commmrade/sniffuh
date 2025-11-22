@@ -42,8 +42,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
         Sniffer s{vec[1]};
         s.sniff_loop();
-    } else if (!strcmp(argv[1], "store")) {
-        std::println("Storing mode");
+    } else if (!strcmp(argv[1], "read")) {
         auto entries = read_file("test.json");
         for (const auto& en : entries) {
             print_entry(en);

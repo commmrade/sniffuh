@@ -95,7 +95,6 @@ void Sniffer::process_packet(std::span<char> p) {
         std::println("{}", output);
         m_writer.add(packet.second);
     }
-    // print_entry(packet.second);
 }
 
 void Sniffer::sniff_loop() {
