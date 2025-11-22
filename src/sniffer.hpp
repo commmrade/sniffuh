@@ -3,7 +3,6 @@
 #include <string_view>
 #include <span>
 
-
 class Sniffer {
     Writer m_writer;
     int m_sock;
