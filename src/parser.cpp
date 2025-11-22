@@ -109,12 +109,6 @@ std::shared_ptr<void> TcpParser::parse(std::span<char> bytes, Entry& entry) {
     std::memcpy(result->options.data(), bytes.data(), options_size);
     bytes = bytes.subspan(options_size);
 
-/*0x14 	20 	ChangeCipherSpec
-0x15 	21 	Alert
-0x16 	22 	Handshake
-0x17 	23 	Application
-0x18 */
-
     // std::println("TLS first byte: {:#02x}", *bytes.begin());
     if (bytes.size()) {
         auto first_byte = *bytes.begin();

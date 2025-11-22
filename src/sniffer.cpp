@@ -66,12 +66,15 @@ void Sniffer::setup(std::string_view if_name) {
     }
 }
 
+void Sniffer::set_log_lvl(LogLevel loglvl) {
+    m_log_lvl = loglvl;
+}
 
 void Sniffer::process_packet(std::span<char> p) {
     auto packet = parse_packet(p);
     if (packet.first.plod) {
-        auto output = log_packet(packet.first, LogLevel::VVV);
-        // std::println("{}", output);
+        auto output = log_packet(packet.first, m_log_lvl);
+        std::println("{}", output);
         m_writer.store(packet.second);
     }
 }

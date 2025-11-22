@@ -407,7 +407,7 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
      if (tls_rec->records.empty()) {
          return res;
      }
-
+     res += "TLS: ";
      for (const auto& rec : tls_rec->records) {
         switch (m_log_lvl) {
         case LogLevel::V: {

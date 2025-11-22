@@ -26,6 +26,12 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         w_group.add_argument("--opt2")
             .default_value(std::string{"Def"})
             .help("Test option");
+
+        auto& debug_lvls = w_group.add_mutually_exclusive_group();
+        debug_lvls.add_argument("--log-level")
+            .default_value(static_cast<int>(0))
+            .scan<'i', int>()
+            .help("Log level for logging [0, 1, 2]");
         // Add option to specify interface
 
         auto& r_group = parser.add_group("Read options");
@@ -42,6 +48,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         parser.parse_args(argc, argv);
     } catch (const std::exception& ex) {
         std::println("Exception: {}", ex.what());
+        return -1;
     }
 
     if (parser.is_used("log")) {
@@ -50,7 +57,17 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
             throw std::runtime_error("Should be ran as root");
         }
 
+        LogLevel loglvl;
+        int lvl = parser.get<int>("--log-level");
+        if (lvl < 0) {
+            std::println("Log level can't be set to {}, set to 0 (min)", lvl);
+        } else if (lvl > 2) {
+            std::println("Log level can't be set to {}, set to 2 (max)", lvl);
+        }
+        loglvl = static_cast<LogLevel>(lvl);
+
         Sniffer s{vec[1]};
+        s.set_log_lvl(loglvl);
         s.sniff_loop();
     } else if (parser.is_used("read")) {
         auto entries = read_file("test.json");

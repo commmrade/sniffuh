@@ -10,7 +10,7 @@ std::vector<std::string> show_interfaces();
 
 class Logger;
 enum class LogLevel {
-    V, // default, // log format: [protocol]: [stuff...]; ...next protocol
+    V = 0, // default, // log format: [protocol]: [stuff...]; ...next protocol
     VV, // log format: [protocol]: [stuff...];\nNext protocol...
     VVV // log format: [protocol]: [
         //                          stnuff...
