@@ -29,6 +29,8 @@ std::vector<std::string> show_interfaces() {
 }
 
 std::string log_packet(Packet& pkt, LogLevel lvl) {
+    if (!pkt.plod)
+        return "";
     auto log = make_logger(Protocols::ETH, lvl);
 
     std::string r;
