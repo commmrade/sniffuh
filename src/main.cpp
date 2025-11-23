@@ -34,12 +34,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
             .default_value(std::string{ANY_INTERFACE})
             .help("Specify an interface");
 
-        auto& debug_lvls = w_group.add_mutually_exclusive_group();
-        debug_lvls.add_argument("--log-level")
+        parser.add_argument("--log-level")
             .default_value(static_cast<int>(0))
             .scan<'i', int>()
             .help("Log level for logging [0, 1, 2]");
-        // Add option to specify interface
 
         auto& r_group = parser.add_group("Read options");
         r_group.add_argument("--opt1")
@@ -48,6 +46,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         r_group.add_argument("--opt2")
             .default_value(std::string{"def"})
             .help("Test option");
+        // Setup filters and shit
     }
 
 
