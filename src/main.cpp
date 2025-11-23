@@ -30,6 +30,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         w_group.add_argument("--opt2")
             .default_value(std::string{"Def"})
             .help("Test option");
+        w_group.add_argument("--interface")
+            .default_value(std::string{ANY_INTERFACE})
+            .help("Specify an interface");
 
         auto& debug_lvls = w_group.add_mutually_exclusive_group();
         debug_lvls.add_argument("--log-level")
@@ -69,10 +72,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         }
         loglvl = static_cast<LogLevel>(lvl);
 
-        auto ifcs = show_interfaces();
-        std::string if_name = ifcs.empty() ? "" : ifcs[0];
+        std::string ifc = parser.get<std::string>("--interface");
 
-        Sniffer s{if_name};
+        Sniffer s{ifc};
         s.set_log_lvl(loglvl);
         s.sniff_loop();
     } else if (parser.is_used("read")) {
