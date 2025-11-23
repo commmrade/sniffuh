@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+#include <vector>
 
 template <typename Action>
 struct defer {
@@ -8,7 +10,5 @@ struct defer {
     }
 };
 
-enum class ethProto {
-    IPv4 = 0x0800,
-    ARP = 0x0806
-};
+constexpr std::string_view ANY_INTERFACE = "any";
+std::vector<std::string> show_interfaces();

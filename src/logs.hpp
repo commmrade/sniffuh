@@ -6,8 +6,6 @@
 #define TODO(x) throw std::runtime_error(std::format("TODO: {}", x))
 
 
-std::vector<std::string> show_interfaces();
-
 class Logger;
 enum class LogLevel {
     V = 0, // default, // log format: [protocol]: [stuff...]; ...next protocol

@@ -1,10 +1,10 @@
 #include "logs.hpp"
-#include "parser.hpp"
 #include "sniffer.hpp"
 #include <exception>
 #include <print>
 #include <stdexcept>
 #include "argparse/argparse.hpp"
+#include "utils.hpp"
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
     argparse::ArgumentParser parser;
@@ -16,6 +16,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         group.add_argument("--read")
             .flag()
             .help("Reading log dumps mode");
+        group.add_argument("--interfaces")
+            .flag()
+            .help("Specify which interface you want to 'sniff'");
+
         // TODO: Show interfaces option
     }
     {
@@ -52,7 +56,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
     }
 
     if (parser.is_used("log")) {
-        auto vec = show_interfaces();
         if (geteuid() != 0) {
             throw std::runtime_error("Should be ran as root");
         }
@@ -66,13 +69,21 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         }
         loglvl = static_cast<LogLevel>(lvl);
 
-        Sniffer s{vec[1]};
+        auto ifcs = show_interfaces();
+        std::string if_name = ifcs.empty() ? "" : ifcs[0];
+
+        Sniffer s{if_name};
         s.set_log_lvl(loglvl);
         s.sniff_loop();
     } else if (parser.is_used("read")) {
         auto entries = read_file("test.json");
         for (const auto& en : entries) {
             std::println("{}", en.ts);
+        }
+    } else if (parser.is_used("interfaces")) {
+        auto ifcs = show_interfaces();
+        for (const auto& ifc : ifcs) {
+            std::println("Interface: {}", ifc);
         }
     }
 
