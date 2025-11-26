@@ -234,18 +234,18 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
     res += "TCP: ";
     switch (m_log_lvl) {
     case LogLevel::V: {
-        res += std::format("SPort: {}, DPort: {}, Seq: {}, Ack: {}; ", ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq));
+        res += std::format("SPort: {}, TPort: {}, Seq: {}, Ack: {}; ", ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq));
         break;
     }
     case LogLevel::VV: {
         // TODO: Print ackn onyl when ack bit is set
-        res += std::format("SPort: {}, DPort: {}, Seq: {}, Ack: {}, Win: {};\n",
+        res += std::format("SPort: {}, TPort: {}, Seq: {}, Ack: {}, Win: {};\n",
             ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq),
             ntohs(tcp->hdr.window));
         break;
     }
     case LogLevel::VVV: {
-        res += std::format("\n    SPort: {}, DPort: {}\n    Seq: {}, Ack: {}, Win: {}\n    Options: ",
+        res += std::format("\n    SPort: {}, TPort: {}\n    Seq: {}, Ack: {}, Win: {}\n    Options: ",
             ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq), ntohs(tcp->hdr.window));
 
         if (tcp->options.size()) {
@@ -338,14 +338,14 @@ std::string UdpLogger::process(std::shared_ptr<void> p) {
     res += "UDP: ";
     switch (m_log_lvl) {
     case LogLevel::V: {
-        res += std::format("SPort: {}, DPort: {}, Len: {}; ", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
+        res += std::format("SPort: {}, TPort: {}, Len: {}; ", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
     }
     case LogLevel::VV: {
-        res += std::format("SPort: {}, DPort: {}, Len: {}; \n", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
+        res += std::format("SPort: {}, TPort: {}, Len: {}; \n", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
         break;
     }
     case LogLevel::VVV: {
-        res += std::format("\n    SPort: {}, DPort: {}\n    Len: {}; \n", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
+        res += std::format("\n    SPort: {}, TPort: {}\n    Len: {}; \n", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
         break;
     }
     }

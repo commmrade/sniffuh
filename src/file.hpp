@@ -30,7 +30,7 @@ struct Entry { // Big endian for cross platofr
     std::uint8_t ip_proto;
 
     std::uint16_t sport;
-    std::uint16_t dport;
+    std::uint16_t tport;
 };
 
 void to_json(nlohmann::json& j, const Entry& en);

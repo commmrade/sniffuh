@@ -97,7 +97,7 @@ std::shared_ptr<void> TcpParser::parse(std::span<char> bytes, Entry& entry) {
     std::memcpy(&result->hdr, bytes.data(), tcphdr_size);
 
     std::memcpy(&entry.sport, &result->hdr.source, sizeof(result->hdr.source));
-    std::memcpy(&entry.dport, &result->hdr.dest, sizeof(result->hdr.dest));
+    std::memcpy(&entry.tport, &result->hdr.dest, sizeof(result->hdr.dest));
 
     bytes = bytes.subspan(tcphdr_size);
 
@@ -135,7 +135,7 @@ std::shared_ptr<void> UdpParser::parse(std::span<char> bytes, Entry& entry) {
     std::memcpy(&result->hdr, bytes.data(), udphdr_size);
 
     std::memcpy(&entry.sport, &result->hdr.source, sizeof(result->hdr.source));
-    std::memcpy(&entry.dport, &result->hdr.dest, sizeof(result->hdr.dest));
+    std::memcpy(&entry.tport, &result->hdr.dest, sizeof(result->hdr.dest));
 
     bytes = bytes.subspan(udphdr_size);
     return result;

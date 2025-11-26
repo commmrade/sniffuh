@@ -11,7 +11,7 @@ void to_json(nlohmann::json& j, const Entry& en) {
         {"taddr", en.taddr},
         {"ip_proto", en.ip_proto},
         {"sport", en.sport},
-        {"dport", en.dport}
+        {"tport", en.tport}
     };
 }
 void from_json(const nlohmann::json& j, Entry& en) {
@@ -33,7 +33,7 @@ void from_json(const nlohmann::json& j, Entry& en) {
     en.ip_proto = j["ip_proto"].get<std::uint8_t>();
 
     en.sport = j["sport"].get<std::uint16_t>();
-    en.dport = j["dport"].get<std::uint16_t>();
+    en.tport = j["tport"].get<std::uint16_t>();
 }
 
 std::vector<Entry> read_file(const std::string_view filename) {
@@ -63,7 +63,7 @@ void write_file(const std::string_view filename, std::vector<Entry> entries) {
 
         try {
             nlohmann::json data = nlohmann::json::parse(r_file, nullptr, false);
-            if (!data.is_array()) {
+            if (!data.is_array()) { // TODO: There seems to be a data race because it always satisfies the cond
                 data = nlohmann::json::array();
             }
             r_file.close();
