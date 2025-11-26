@@ -74,6 +74,34 @@ std::string EthLogger::process(std::shared_ptr<void> p) {
     std::string res;
     const ethhdr_f* eth = static_cast<const ethhdr_f*>(p.get());
 
+    res += "ETH: ";
+
+    switch (m_log_lvl) {
+    case LogLevel::V: {
+        res += std::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} -> {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}; ",
+            eth->hdr.h_source[0], eth->hdr.h_source[1], eth->hdr.h_source[2], eth->hdr.h_source[3], eth->hdr.h_source[4], eth->hdr.h_source[5],
+            eth->hdr.h_source[0], eth->hdr.h_source[1], eth->hdr.h_source[2], eth->hdr.h_source[3], eth->hdr.h_source[4], eth->hdr.h_source[5]
+        );
+        break;
+    }
+    case LogLevel::VV: {
+        res += std::format("Src: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} -> Target: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}; EthType: {:#04x}\n",
+            eth->hdr.h_source[0], eth->hdr.h_source[1], eth->hdr.h_source[2], eth->hdr.h_source[3], eth->hdr.h_source[4], eth->hdr.h_source[5],
+            eth->hdr.h_source[0], eth->hdr.h_source[1], eth->hdr.h_source[2], eth->hdr.h_source[3], eth->hdr.h_source[4], eth->hdr.h_source[5],
+            ntohs(eth->hdr.h_proto)
+        );
+        break;
+    }
+    case LogLevel::VVV: {
+        res += std::format("\n    Source: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, Target: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x};\n    EthType: {:#04x}\n",
+            eth->hdr.h_source[0], eth->hdr.h_source[1], eth->hdr.h_source[2], eth->hdr.h_source[3], eth->hdr.h_source[4], eth->hdr.h_source[5],
+            eth->hdr.h_source[0], eth->hdr.h_source[1], eth->hdr.h_source[2], eth->hdr.h_source[3], eth->hdr.h_source[4], eth->hdr.h_source[5],
+            ntohs(eth->hdr.h_proto)
+        );
+        break;
+    }
+    }
+
     Protocols proto{};
     switch (ntohs(eth->hdr.h_proto)) {
         case 0x0800: {
