@@ -142,6 +142,7 @@ void read_mode(argparse::ArgumentParser& parser) {
     }
     if (parser.is_used("eth-proto")) {
         auto proto = parser.get<std::uint32_t>("eth-proto");
+        proto = htons(proto);
         auto filtered = std::views::filter(entries, [proto](const Entry& en) {
             return en.eth_proto == proto;
         }) | std::ranges::to<std::vector<Entry>>();

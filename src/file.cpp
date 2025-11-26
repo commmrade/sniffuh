@@ -33,7 +33,7 @@ void from_json(const nlohmann::json& j, Entry& en) {
     std::memcpy(en.shaddr.data(), shaddr.data(), shaddr.size());
     std::memcpy(en.thaddr.data(), thaddr.data(), thaddr.size());
 
-    en.eth_proto = j["eth_proto"].get<std::uint32_t>();
+    en.eth_proto = j["eth_proto"].get<std::uint16_t>();
 
     auto saddr = j["saddr"].get<std::array<char, 16>>();
     auto taddr = j["taddr"].get<std::array<char, 16>>();

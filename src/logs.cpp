@@ -444,7 +444,7 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
  void print_entry(const Entry& en) {
     char sbuf[INET6_ADDRSTRLEN]{};
     char tbuf[INET6_ADDRSTRLEN]{};
-    if (en.eth_proto == ntohs(ETH_P_IP)) {
+    if (en.eth_proto == htons(ETH_P_IP)) {
         const char* r = inet_ntop(AF_INET, en.saddr.data(), sbuf, sizeof(sbuf));
         assert(r);
         r = inet_ntop(AF_INET, en.taddr.data(), tbuf, sizeof(tbuf));
@@ -455,8 +455,8 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
         en.ts,
         en.shaddr[0], en.shaddr[1], en.shaddr[2], en.shaddr[3], en.shaddr[4], en.shaddr[5],
         en.thaddr[0], en.thaddr[1], en.thaddr[2], en.thaddr[3], en.thaddr[4], en.thaddr[5],
-        (en.eth_proto), // why ntohs?
-        en.eth_proto == ntohs(ETH_P_IP) ? sbuf : "-", en.eth_proto == ntohs(ETH_P_IP) ? tbuf : "-",
+        ntohs(en.eth_proto), // why ntohs?
+        en.eth_proto == htons(ETH_P_IP) ? sbuf : "-", en.eth_proto == htons(ETH_P_IP) ? tbuf : "-",
         en.ip_proto,
         ntohs(en.sport), ntohs(en.tport)
     );
