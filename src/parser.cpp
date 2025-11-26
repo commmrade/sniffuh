@@ -225,7 +225,7 @@ std::shared_ptr<void> EthParser::parse(std::span<char> bytes, Entry& entry) {
     // std::println("If length?: {}", ntohs(result->hdr.h_proto));
     if (ntohs(result->hdr.h_proto) == ETH_P_8021Q) {
         bytes = bytes.subspan(sizeof(result->hdr.h_source) + sizeof(result->hdr.h_dest) + 2); // 2 for vlan tag part
-        std::memcpy(&result->hdr.h_proto, bytes.data(), sizeof(result->hdr.h_proto));
+        std::memcpy(&result->hdr.h_proto, bytes.data(), sizeof(result->hdr.h_proto)); // It also may be length, according to IEEE 802.3, if it is length field it is <= 1500, it it is ethertype, its >= ~1536
         bytes = bytes.subspan(sizeof(result->hdr.h_proto));
     } else {
         bytes = bytes.subspan(ethhdr_size);
