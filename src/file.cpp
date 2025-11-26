@@ -79,7 +79,7 @@ void Writer::write_to_file() {
 
         try {
             nlohmann::json data = nlohmann::json::parse(r_file, nullptr, false);
-            if (!data.is_array()) { // TODO: There seems to be a data race because it always satisfies the cond
+            if (!data.is_array()) { // NOTICE: Data race is fixed, but Im not gonna do anything else since i will just replace it with binary stuff
                 std::println("FUCK UP\nFUCK UP\nFUCK UP");
                 data = nlohmann::json::array();
             }
@@ -98,8 +98,7 @@ void Writer::write_to_file() {
             w_file.flush();
             w_file.close();
         } catch (const std::exception& ex) {
-            // TODO: Handle
-            std::println("Ex: {}", ex.what());
+            std::println("Error when writing to the log file {}: {}", m_filename, ex.what());
             return;
         }
     }};

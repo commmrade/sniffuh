@@ -43,8 +43,3 @@ public:
     Writer(int write_interval = 10, std::string_view filename = "test.json");
     void store(const Entry& en);
 };
-
-
-/*
-TODO: Write to file as json array
-*/

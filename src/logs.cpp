@@ -230,21 +230,23 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
     const tcphdr_f* tcp = static_cast<const tcphdr_f*>(p.get());
 
     res += "TCP: ";
+
+    bool is_ack_set = tcp->hdr.ack;
+
     switch (m_log_lvl) {
     case LogLevel::V: {
-        res += std::format("SPort: {}, TPort: {}, Seq: {}, Ack: {}; ", ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq));
+        res += std::format("SPort: {}, TPort: {}, Seq: {}, Ack: {}; ", ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), is_ack_set ? ntohl(tcp->hdr.ack_seq) : 0);
         break;
     }
     case LogLevel::VV: {
-        // TODO: Print ackn onyl when ack bit is set
         res += std::format("SPort: {}, TPort: {}, Seq: {}, Ack: {}, Win: {};\n",
-            ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq),
+            ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), is_ack_set ? ntohl(tcp->hdr.ack_seq) : 0,
             ntohs(tcp->hdr.window));
         break;
     }
     case LogLevel::VVV: {
         res += std::format("\n    SPort: {}, TPort: {}\n    Seq: {}, Ack: {}, Win: {}\n    Options: ",
-            ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), ntohl(tcp->hdr.ack_seq), ntohs(tcp->hdr.window));
+            ntohs(tcp->hdr.source), ntohs(tcp->hdr.dest), ntohl(tcp->hdr.seq), is_ack_set ? ntohl(tcp->hdr.ack_seq) : 0, ntohs(tcp->hdr.window));
 
         if (tcp->options.size()) {
             res += "[";
@@ -283,27 +285,6 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
                             break;
                         }
                         obytes = obytes.subspan(pad_len); // Offset when there is padding
-                        // uint8_t olen;
-                        // std::memcpy(&olen, obytes.data(), sizeof(olen));
-                        // obytes = obytes.subspan(sizeof(olen));
-                        // olen -= sizeof(olen) + sizeof(kind);
-
-                        // uint32_t ststmp;
-                        // std::memcpy(&ststmp, obytes.data(), sizeof(ststmp));
-                        // obytes = obytes.subspan(sizeof(ststmp));
-                        // ststmp = ntohl(ststmp);
-
-                        // uint32_t ttstmp;
-                        // std::memcpy(&ttstmp, obytes.data(), sizeof(ttstmp));
-                        // obytes = obytes.subspan(sizeof(ttstmp));
-                        // ttstmp = ntohl(ttstmp);
-                        // res += std::format("Ts [{}][{}], ", ts.ststmp, ts.ttstmp);
-
-                        // olen -= sizeof(ststmp) + sizeof(ttstmp);
-                        // if (olen < 0) {
-                        //     throw std::runtime_error("Packet is corrupted");
-                        // }
-                        // obytes = obytes.subspan(olen);
 
                         break;
                     }
