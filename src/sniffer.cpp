@@ -1,6 +1,5 @@
 #include <net/if.h>
 #include "sniffer.hpp"
-#include <chrono>
 #include <linux/in6.h>
 #include "packet.hpp"
 #include "parser.hpp"

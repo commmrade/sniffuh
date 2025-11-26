@@ -8,8 +8,6 @@
 #include <netinet/in.h>
 #include <print>
 #include "packet.hpp"
-#include "utils.hpp"
-
 
 
 std::string log_packet(Packet& pkt, LogLevel lvl) {

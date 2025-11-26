@@ -1,6 +1,7 @@
 #include "logs.hpp"
 #include "sniffer.hpp"
 #include <arpa/inet.h>
+#include <cstring>
 #include <exception>
 #include <netinet/in.h>
 #include <print>
