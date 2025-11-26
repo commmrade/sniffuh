@@ -41,37 +41,42 @@ void Sniffer::setup(std::string_view if_name) {
         throw std::runtime_error("Socket creation failed");
     }
 
-    struct packet_mreq mr;
-    memset(&mr, 0, sizeof(mr));
-    mr.mr_ifindex = if_nametoindex(if_name.data());
-    mr.mr_type = PACKET_MR_PROMISC;
-    if (setsockopt(m_sock, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) < 0) {
-        perror("setsockopt");
-        throw std::runtime_error("Could not set sock opt promisc mode");
-    } // enable promisicsdsdj mode
+    if (!if_name.empty() && if_name != ANY_INTERFACE) {
+        struct packet_mreq mr;
+        memset(&mr, 0, sizeof(mr));
+        mr.mr_ifindex = if_nametoindex(if_name.data());
+        mr.mr_type = PACKET_MR_PROMISC;
+        if (setsockopt(m_sock, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) < 0) {
+            perror("setsockopt");
+            throw std::runtime_error("Could not set sock opt promisc mode");
+        } // enable promisicsdsdj mode
 
-    sockaddr_ll addr{};
-    socklen_t addr_len = sizeof(addr);
-    addr.sll_family = AF_PACKET;
-    addr.sll_ifindex = if_nametoindex(if_name.data());
-    if (!addr.sll_ifindex) {
-        perror("if_nametoindex");
-        throw std::runtime_error("nametoindex failed");
-    }
+        sockaddr_ll addr{};
+        socklen_t addr_len = sizeof(addr);
+        addr.sll_family = AF_PACKET;
+        addr.sll_ifindex = if_nametoindex(if_name.data());
+        if (!addr.sll_ifindex) {
+            perror("if_nametoindex");
+            throw std::runtime_error("nametoindex failed");
+        }
 
-    ret = bind(m_sock, (sockaddr*)&addr, addr_len);
-    if (ret < 0) {
-        perror("bind");
-        throw std::runtime_error("Could not bind");
+        ret = bind(m_sock, (sockaddr*)&addr, addr_len);
+        if (ret < 0) {
+            perror("bind");
+            throw std::runtime_error("Could not bind");
+        }
     }
 }
 
+void Sniffer::set_log_lvl(LogLevel loglvl) {
+    m_log_lvl = loglvl;
+}
 
 void Sniffer::process_packet(std::span<char> p) {
     auto packet = parse_packet(p);
     if (packet.first.plod) {
-        auto output = log_packet(packet.first, LogLevel::VVV);
-        // std::println("{}", output);
+        auto output = log_packet(packet.first, m_log_lvl);
+        std::println("{}", output);
         m_writer.store(packet.second);
     }
 }

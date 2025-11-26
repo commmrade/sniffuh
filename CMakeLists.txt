@@ -19,6 +19,8 @@ add_executable(sniffuh
     src/sniffer.cpp
     src/logs.cpp
     src/parser.cpp
+    src/file.cpp
+    src/utils.cpp
 )
 
 target_compile_options(sniffuh PRIVATE -Wall -Wextra)
