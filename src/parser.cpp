@@ -187,8 +187,6 @@ std::shared_ptr<void> IpParser::parse(std::span<char> bytes, Entry& entry) {
 
     bytes = bytes.subspan(options_size);
 
-    // Call the next parser
-    // auto proto = result->hdr.protocol == 6 ? Protocols::TCP : Protocols::UDP; // TODO: Improve
     Protocols proto{};
     switch (result->hdr.protocol) {
         case IPPROTO_ICMP: {
@@ -215,7 +213,6 @@ std::shared_ptr<void> IpParser::parse(std::span<char> bytes, Entry& entry) {
 
 std::shared_ptr<void> EthParser::parse(std::span<char> bytes, Entry& entry) {
     auto result = std::make_shared<ethhdr_f>();
-    // TODO: Implement parsing logic for Ethernet different header types
     constexpr auto ethhdr_size = sizeof(ethhdr);
     if (bytes.size() < ethhdr_size) {
         return {};
