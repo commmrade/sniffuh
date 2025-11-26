@@ -1,4 +1,5 @@
 #include "file.hpp"
+#include <stdexcept>
 #include <thread>
 #include <cstring>
 #include <nlohmann/json.hpp>
@@ -42,10 +43,10 @@ void from_json(const nlohmann::json& j, Entry& en) {
 }
 
 std::vector<Entry> read_file(const std::string_view filename) {
-    std::ifstream r_file(filename.data());
     std::vector<Entry> result;
+    std::ifstream r_file(filename.data());
     if (!r_file.is_open()) {
-        return result;
+        throw std::runtime_error(std::format("Could not open {}", filename));
     }
 
     nlohmann::json data = nlohmann::json::parse(r_file);

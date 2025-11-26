@@ -29,6 +29,9 @@ void setup_parser(argparse::ArgumentParser& parser) {
         w_group.add_argument("--interface")
             .default_value(std::string{ANY_INTERFACE})
             .help("Specify an interface");
+        w_group.add_argument("-o")
+            .default_value(std::string{"test.json"})
+            .help("Specify path for an output log file");
 
         parser.add_argument("--log-level")
             .default_value(static_cast<int>(0))
@@ -36,6 +39,9 @@ void setup_parser(argparse::ArgumentParser& parser) {
             .help("Log level for logging [0, 1, 2]");
 
         auto& r_group = parser.add_group("Read options");
+        r_group.add_argument("-i")
+            .default_value(std::string{"test.json"})
+            .help("Specify path for an input log file");
         r_group.add_argument("--time-order") //
             .scan<'i', int>() //
             .help("Sort order by time. 0 - ascending, 1 - descending");
@@ -89,7 +95,7 @@ void log_mode(argparse::ArgumentParser& parser) {
 }
 
 void read_mode(argparse::ArgumentParser& parser) {
-    auto entries = read_file("test.json"); // TODO: Get rid of hardcoded file
+    auto entries = read_file(parser.get<std::string>("-i"));
 
     if (parser.is_used("time-order")) {
         int order_val = parser.get<int>("time-order");
