@@ -67,28 +67,15 @@ void Sniffer::setup(std::string_view if_name) {
     }
 }
 
-void Sniffer::set_log_lvl(LogLevel loglvl) {
-    m_log_lvl = loglvl;
-}
 
-void Sniffer::process_packet(std::span<char> p) {
-    auto packet = parse_packet(p);
-    if (packet.first.plod) {
-        auto output = log_packet(packet.first, m_log_lvl);
-        std::println("{}", output);
-        m_writer.store(packet.second);
+std::pair<Packet, Entry> Sniffer::sniff() {
+    std::array<char, (1 << 16)> buf;
+    ssize_t rd_bytes = recv(m_sock, buf.data(), sizeof(buf), 0);
+    if (rd_bytes <= 0) {
+        perror("recv");
+        throw std::runtime_error("Recv failed");
     }
-}
+    std::span<char> p{buf.data(), static_cast<size_t>(rd_bytes)};
 
-void Sniffer::sniff_loop() {
-    while (true) {
-        std::array<char, (1 << 16)> buf;
-        ssize_t rd_bytes = recv(m_sock, buf.data(), sizeof(buf), 0);
-        if (rd_bytes <= 0) {
-            perror("recv");
-            throw std::runtime_error("Recv failed");
-        }
-        std::span<char> p{buf.data(), static_cast<size_t>(rd_bytes)};
-        process_packet(p);
-    }
+    return parse_packet(p);
 }

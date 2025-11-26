@@ -29,8 +29,6 @@ void to_json(nlohmann::json& j, const Entry& en);
 void from_json(const nlohmann::json& j, Entry& en);
 
 std::vector<Entry> read_file(const std::string_view filename);
-void write_file(const std::string_view filename, std::vector<Entry> entries);
-
 
 class Writer {
     std::vector<Entry> m_entries;
@@ -39,8 +37,10 @@ class Writer {
     int m_interval{};
 
     std::string_view m_filename;
+
+    void write_to_file();
 public:
-    Writer(int write_interval = 10, std::string_view filename = "test.json") : m_interval(write_interval), m_filename(filename) {}
+    Writer(int write_interval = 10, std::string_view filename = "test.json");
     void store(const Entry& en);
 };
 

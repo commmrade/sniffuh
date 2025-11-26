@@ -127,7 +127,6 @@ std::shared_ptr<void> TcpParser::parse(std::span<char> bytes, Entry& entry) {
 
 std::shared_ptr<void> UdpParser::parse(std::span<char> bytes, Entry& entry) {
     auto result = std::make_shared<udphdr_f>();
-    auto a = IPPROTO_IP;
     constexpr auto udphdr_size = sizeof(udphdr);
     if (bytes.size() < udphdr_size) {
         throw std::runtime_error("Can't parse UDP");

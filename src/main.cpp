@@ -90,8 +90,15 @@ void log_mode(argparse::ArgumentParser& parser) {
     std::string ifc = parser.get<std::string>("--interface");
 
     Sniffer s{ifc};
-    s.set_log_lvl(loglvl);
-    s.sniff_loop();
+    Writer writer{100, parser.get<std::string>("-o")};
+    while (true) {
+        auto packentry = s.sniff();
+        if (packentry.first.plod) {
+            auto output = log_packet(packentry.first, loglvl);
+            std::println("{}", output);
+            writer.store(packentry.second);
+        }
+    }
 }
 
 void read_mode(argparse::ArgumentParser& parser) {

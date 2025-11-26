@@ -1,4 +1,8 @@
 #include "file.hpp"
+#include <filesystem>
+#include <ios>
+#include <iterator>
+#include <mutex>
 #include <stdexcept>
 #include <thread>
 #include <cstring>
@@ -60,9 +64,15 @@ std::vector<Entry> read_file(const std::string_view filename) {
     }
     return result;
 }
-void write_file(const std::string_view filename, std::vector<Entry> entries) {
-    std::thread th{[filename, entries = std::move(entries)] {
-        std::ifstream r_file{filename.data()};
+
+Writer::Writer(int write_interval, std::string_view filename) : m_interval(write_interval), m_filename(filename) {
+    std::ofstream file{std::string{filename}, std::ios_base::app};
+    file.close();
+}
+
+void Writer::write_to_file() {
+    std::thread th{[this] {
+        std::ifstream r_file{m_filename.data()};
         if (!r_file.is_open()) {
             return;
         }
@@ -70,20 +80,19 @@ void write_file(const std::string_view filename, std::vector<Entry> entries) {
         try {
             nlohmann::json data = nlohmann::json::parse(r_file, nullptr, false);
             if (!data.is_array()) { // TODO: There seems to be a data race because it always satisfies the cond
+                std::println("FUCK UP\nFUCK UP\nFUCK UP");
                 data = nlohmann::json::array();
             }
             r_file.close();
 
-            std::ofstream w_file{filename.data(), std::ios_base::trunc};
+            std::ofstream w_file{m_filename.data(), std::ios_base::trunc};
             if (!w_file.is_open()) {
                 return;
             }
 
-
-
-            for (const auto& en : entries) {
-                data.push_back(en);
-            }
+            std::unique_lock lock{m_mutex};
+            std::copy(m_entries.begin(), m_entries.end(), std::back_inserter(data));
+            lock.unlock();
 
             w_file << data.dump(4);
             w_file.flush();
@@ -104,8 +113,10 @@ void Writer::store(const Entry& en) {
 
     ++m_cnter;
     if (m_cnter >= m_interval) {
-        write_file(m_filename, std::move(m_entries));
-        assert(m_entries.size() == 0);
+        write_to_file();
+        std::unique_lock lock{m_mutex};
+        m_entries.clear();
+        lock.unlock();
         m_cnter = 0;
     }
 }
