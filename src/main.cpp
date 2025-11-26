@@ -45,7 +45,7 @@ void setup_parser(argparse::ArgumentParser& parser) {
             .default_value(std::string{})
             .help("Find records for specified target hardware address");
         r_group.add_argument("--eth-proto")
-            .scan<'i', int>() // from ethernet rfc
+            .scan<'i', std::uint32_t>() // from ethernet rfc
             .help("Find records for the specified EtherType. From RFC in HEX format");
         r_group.add_argument("--saddr")
             .default_value(std::string{})
@@ -88,7 +88,7 @@ void log_mode(argparse::ArgumentParser& parser) {
 }
 
 void read_mode(argparse::ArgumentParser& parser) {
-    auto entries = read_file("test.json");
+    auto entries = read_file("test.json"); // TODO: Get rid of hardcoded file
 
     if (parser.is_used("time-order")) {
         int order_val = parser.get<int>("time-order");
@@ -129,7 +129,7 @@ void read_mode(argparse::ArgumentParser& parser) {
     if (parser.is_used("eth-proto")) {
         auto proto = parser.get<std::uint32_t>("eth-proto");
         auto filtered = std::views::filter(entries, [proto](const Entry& en) {
-            return ntohl(en.eth_proto) == proto;
+            return en.eth_proto == proto;
         }) | std::ranges::to<std::vector<Entry>>();
         entries = std::move(filtered);
     }

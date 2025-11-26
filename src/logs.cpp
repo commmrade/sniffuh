@@ -435,23 +435,22 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
  }
 
  void print_entry(const Entry& en) {
-     std::println("=====");
-     std::println("Ts: {}", en.ts);
-     std::println("Shaddr: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", en.shaddr[0], en.shaddr[1], en.shaddr[2], en.shaddr[3], en.shaddr[4], en.shaddr[5]);
-     std::println("Thaddr: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", en.thaddr[0], en.thaddr[1], en.thaddr[2], en.thaddr[3], en.thaddr[4], en.thaddr[5]);
-     std::println("Eth proto: {:#04x}", ntohs(en.eth_proto));
-     if (en.eth_proto == ntohs(ETH_P_IP)) {
-         char buf[INET_ADDRSTRLEN];
-         const char* r = inet_ntop(AF_INET, en.saddr.data(), buf, sizeof(buf));
-         assert(r);
-         std::println("Source addr: {}", buf);
-         r = inet_ntop(AF_INET, en.taddr.data(), buf, sizeof(buf));
-         assert(r);
-         std::println("Dest addr: {}", buf);
-     }
-     std::println("IP proto: {}", en.ip_proto);
-     std::println("Sport: {}", ntohs(en.sport));
-     std::println("Tport: {}", ntohs(en.tport));
+    char sbuf[INET6_ADDRSTRLEN]{};
+    char tbuf[INET6_ADDRSTRLEN]{};
+    if (en.eth_proto == ntohs(ETH_P_IP)) {
+        const char* r = inet_ntop(AF_INET, en.saddr.data(), sbuf, sizeof(sbuf));
+        assert(r);
+        r = inet_ntop(AF_INET, en.taddr.data(), tbuf, sizeof(tbuf));
+        assert(r);
+    }
 
-     std::println("=====");
+    std::println("{}:\n    SHAddr: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, THAddr: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, EtherType: {:#04x}\n    SAddr: {}, TAddr: {}, IP Proto: {}\n    SPort: {}, TPort: {}",
+        en.ts,
+        en.shaddr[0], en.shaddr[1], en.shaddr[2], en.shaddr[3], en.shaddr[4], en.shaddr[5],
+        en.thaddr[0], en.thaddr[1], en.thaddr[2], en.thaddr[3], en.thaddr[4], en.thaddr[5],
+        (en.eth_proto), // why ntohs?
+        en.eth_proto == ntohs(ETH_P_IP) ? sbuf : "-", en.eth_proto == ntohs(ETH_P_IP) ? tbuf : "-",
+        en.ip_proto,
+        ntohs(en.sport), ntohs(en.tport)
+    );
  }
