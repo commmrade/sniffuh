@@ -21,6 +21,7 @@ add_executable(sniffuh
     src/parser.cpp
     src/file.cpp
     src/utils.cpp
+    include/pdor.cpp
 )
 
 target_include_directories(sniffuh PRIVATE include)

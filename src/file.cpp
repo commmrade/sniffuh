@@ -20,7 +20,6 @@ std::vector<Entry> read_file(const std::string_view filename) {
 
 Writer::Writer(std::string_view filename) : m_filename(filename), m_file(std::string{filename}) {
     bool r = m_file.open();
-    std::println("R: {}", r);
     std::filesystem::permissions(filename,
         std::filesystem::perms::all,
         std::filesystem::perm_options::replace);
