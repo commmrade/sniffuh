@@ -589,7 +589,7 @@ std::string Icmp6Logger::process(std::shared_ptr<void> p) {
 
 
     std::println("{}:\n    SHAddr: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, THAddr: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, EtherType: {:#04x}\n    SAddr: {}, TAddr: {}, IP Proto: {}\n    SPort: {}, TPort: {}",
-        en.ts,
+        std::chrono::system_clock::from_time_t(be64toh(en.ts)),
         en.shaddr[0], en.shaddr[1], en.shaddr[2], en.shaddr[3], en.shaddr[4], en.shaddr[5],
         en.thaddr[0], en.thaddr[1], en.thaddr[2], en.thaddr[3], en.thaddr[4], en.thaddr[5],
         ntohs(en.eth_proto),

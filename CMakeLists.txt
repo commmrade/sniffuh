@@ -23,6 +23,8 @@ add_executable(sniffuh
     src/utils.cpp
 )
 
+target_include_directories(sniffuh PRIVATE include)
+
 target_compile_options(sniffuh PRIVATE -Wall -Wextra)
 
 find_package(nlohmann_json REQUIRED)

@@ -11,10 +11,10 @@
 #include <fstream>
 #include <print>
 
+namespace pdor {
 void to_json(nlohmann::json& j, const Entry& en) {
-    auto time_ms = std::chrono::duration_cast<std::chrono::seconds>(en.ts.time_since_epoch()).count();
     j = nlohmann::json{ // TODO: Not cross architecture
-        {"ts", htobe64(time_ms)},
+        {"ts", htobe64(en.ts)},
         {"shaddr", en.shaddr},
         {"thaddr", en.thaddr},
         {"eth_proto", en.eth_proto},
@@ -26,8 +26,7 @@ void to_json(nlohmann::json& j, const Entry& en) {
     };
 }
 void from_json(const nlohmann::json& j, Entry& en) {
-    auto ts = std::chrono::system_clock::from_time_t(be64toh(j["ts"].get<std::time_t>()));
-    en.ts = ts;
+    en.ts = j["ts"].get<std::time_t>();
 
     auto shaddr = j["shaddr"].get<std::array<char, 6>>();
     auto thaddr = j["thaddr"].get<std::array<char, 6>>();
@@ -46,7 +45,7 @@ void from_json(const nlohmann::json& j, Entry& en) {
     en.sport = j["sport"].get<std::uint16_t>();
     en.tport = j["tport"].get<std::uint16_t>();
 }
-
+}
 std::vector<Entry> read_file(const std::string_view filename) {
     std::vector<Entry> result;
     std::ifstream r_file(filename.data());
