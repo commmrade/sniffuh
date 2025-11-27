@@ -434,6 +434,7 @@ std::string UdpLogger::process(std::shared_ptr<void> p) {
     switch (m_log_lvl) {
     case LogLevel::V: {
         res += std::format("SPort: {}, TPort: {}, Len: {}; ", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));
+        break;
     }
     case LogLevel::VV: {
         res += std::format("SPort: {}, TPort: {}, Len: {}; \n", ntohs(udp->hdr.source), ntohs(udp->hdr.dest), ntohs(udp->hdr.len));

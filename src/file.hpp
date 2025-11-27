@@ -1,6 +1,5 @@
 #pragma once
 #include <netinet/in.h>
-#include <nlohmann/json_fwd.hpp>
 #include <vector>
 #include "entry.hpp"
 #include "pdor.hpp"
@@ -18,6 +17,6 @@ class Writer {
     std::string_view m_filename;
     pdor::Writer m_file;
 public:
-    Writer(std::string_view filename = "test.json");
+    Writer(std::string_view filename = "test.pdor");
     void store(const Entry& en);
 };

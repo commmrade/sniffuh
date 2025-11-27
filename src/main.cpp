@@ -30,7 +30,7 @@ void setup_parser(argparse::ArgumentParser& parser) {
             .default_value(std::string{ANY_INTERFACE})
             .help("Specify an interface");
         w_group.add_argument("-o")
-            .default_value(std::string{"test.json"})
+            .default_value(std::string{"test.pdor"})
             .help("Specify path for an output log file");
 
         parser.add_argument("--log-level")
@@ -40,7 +40,7 @@ void setup_parser(argparse::ArgumentParser& parser) {
 
         auto& r_group = parser.add_group("Read options");
         r_group.add_argument("-i")
-            .default_value(std::string{"test.json"})
+            .default_value(std::string{"test.pdor"})
             .help("Specify path for an input log file");
         r_group.add_argument("--time-order") //
             .scan<'i', int>() //

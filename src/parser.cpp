@@ -254,6 +254,7 @@ std::shared_ptr<void> Ip6Parser::parse(std::span<char> bytes, Entry& entry) {
             break;
         case IPPROTO_ICMP:
             proto = Protocols::ICMP;
+            break;
         case IPPROTO_ICMPV6:
             proto = Protocols::ICMPv6;
             break;
