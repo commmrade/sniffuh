@@ -59,7 +59,7 @@ std::pair<Packet, Entry> parse_packet(std::span<char> bytes) {
     Entry entry;
     auto parser = make_parser(Protocols::ETH);
     result.timestamp = std::chrono::system_clock::now();
-    entry.ts = std::chrono::duration_cast<std::chrono::seconds>(result.timestamp.time_since_epoch()).count();
+    entry.ts = htobe64(std::chrono::duration_cast<std::chrono::seconds>(result.timestamp.time_since_epoch()).count());
     result.plod = parser->parse(bytes, entry);
     return {result, entry};
 }

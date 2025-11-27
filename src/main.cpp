@@ -110,7 +110,7 @@ void read_mode(argparse::ArgumentParser& parser) {
             throw std::runtime_error("Invalid value for time order option");
         }
         std::ranges::sort(entries, [order_val](const Entry& lhs, const Entry& rhs) {
-            return order_val == 0 ? lhs.ts < rhs.ts : lhs.ts > rhs.ts;
+            return order_val == 0 ? be64toh(lhs.ts) < be64toh(rhs.ts) : be64toh(lhs.ts) > be64toh(rhs.ts);
         });
     }
 
