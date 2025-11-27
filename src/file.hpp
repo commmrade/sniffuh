@@ -1,6 +1,4 @@
 #pragma once
-#include <chrono>
-#include <mutex>
 #include <netinet/in.h>
 #include <nlohmann/json_fwd.hpp>
 #include <vector>
@@ -20,6 +18,6 @@ class Writer {
     std::string_view m_filename;
     pdor::Writer m_file;
 public:
-    Writer(int write_interval = 10, std::string_view filename = "test.json");
+    Writer(std::string_view filename = "test.json");
     void store(const Entry& en);
 };

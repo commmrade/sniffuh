@@ -18,7 +18,7 @@ std::vector<Entry> read_file(const std::string_view filename) {
     return result;
 }
 
-Writer::Writer(int write_interval, std::string_view filename) : m_filename(filename), m_file(std::string{filename}) {
+Writer::Writer(std::string_view filename) : m_filename(filename), m_file(std::string{filename}) {
     bool r = m_file.open();
     std::println("R: {}", r);
     std::filesystem::permissions(filename,
