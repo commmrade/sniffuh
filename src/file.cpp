@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <ios>
 #include <iterator>
+#include <linux/if_ether.h>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
@@ -67,6 +68,9 @@ std::vector<Entry> read_file(const std::string_view filename) {
 
 Writer::Writer(int write_interval, std::string_view filename) : m_interval(write_interval), m_filename(filename) {
     std::ofstream file{std::string{filename}, std::ios_base::app};
+    std::filesystem::permissions(filename,
+        std::filesystem::perms::all,
+        std::filesystem::perm_options::replace);
     file.close();
 }
 
@@ -80,7 +84,6 @@ void Writer::write_to_file() {
         try {
             nlohmann::json data = nlohmann::json::parse(r_file, nullptr, false);
             if (!data.is_array()) { // NOTICE: Data race is fixed, but Im not gonna do anything else since i will just replace it with binary stuff
-                std::println("FUCK UP\nFUCK UP\nFUCK UP");
                 data = nlohmann::json::array();
             }
             r_file.close();

@@ -18,6 +18,9 @@ class IcmpParser final : public Parser {
 public:
     std::shared_ptr<void> parse(std::span<char> bytes, Entry& entry) override;
 };
+class Icmp6Parser final : public Parser {
+    std::shared_ptr<void> parse(std::span<char> bytes, Entry& entry) override;
+};
 class TcpParser final : public Parser {
 public:
     std::shared_ptr<void> parse(std::span<char> bytes, Entry& entry) override;
@@ -30,7 +33,10 @@ class ArpParser final : public Parser {
 public:
     std::shared_ptr<void> parse(std::span<char> bytes, Entry& entry) override;
 };
-class IpParser final : public Parser {
+class Ip4Parser final : public Parser {
+    std::shared_ptr<void> parse(std::span<char> bytes, Entry& entry) override;
+};
+class Ip6Parser final : public Parser {
     std::shared_ptr<void> parse(std::span<char> bytes, Entry& entry) override;
 };
 class EthParser final : public Parser {

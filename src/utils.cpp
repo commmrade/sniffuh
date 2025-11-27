@@ -1,6 +1,7 @@
 #include "utils.hpp"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
+#include <netinet/in.h>
 #include <stdexcept>
 #include <ranges>
 
@@ -23,9 +24,10 @@ std::vector<std::string> show_interfaces() {
     return ifs;
 }
 
-std::expected<in_addr_t, std::string> convert_to_addr(const std::string& addr_str) {
-    in_addr_t addr{};
-    int r = inet_pton(AF_INET, addr_str.c_str(), &addr);
+std::expected<std::array<char, 16>, std::string> convert_to_addr(const std::string& addr_str) {
+    std::array<char, 16> addr{};
+    int r;
+    r = inet_pton(addr_str.contains(":") ? AF_INET6 : AF_INET, addr_str.c_str(), addr.data());
     switch (r) {
         case 1: { // all good
             return {addr};

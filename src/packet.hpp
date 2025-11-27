@@ -2,9 +2,11 @@
 #include <chrono>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/icmp.h>
+#include <linux/icmpv6.h>
 #include <memory>
 #include <linux/if_arp.h>
 #include <vector>
@@ -22,10 +24,12 @@ struct ethhdr_f {
 enum class Protocols {
     ETH,
     ARP,
-    IP,
+    IPv4,
+    IPv6,
     TCP,
     UDP,
     ICMP,
+    ICMPv6,
     TLS
 };
 
@@ -43,10 +47,16 @@ struct arphdr_ipv4 {
 #pragma pack(pop)
 
 
-struct iphdr_f {
+struct ip4hdr_f {
 	iphdr hdr;
 	std::vector<char> options;
 	std::shared_ptr<void> plod;
+};
+
+struct ip6hdr_f {
+    ipv6hdr hdr;
+    std::vector<char> options;
+    std::shared_ptr<void> plod;
 };
 
 struct tcphdr_f {
@@ -68,6 +78,10 @@ struct tcpoption_ts {
 
 struct icmphdr_f {
     icmphdr hdr;
+};
+
+struct icmp6hdr_f {
+    icmp6hdr hdr;
 };
 
 struct udphdr_f {

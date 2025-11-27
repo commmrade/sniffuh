@@ -4,6 +4,7 @@
 #include <cstring>
 #include <format>
 #include <ifaddrs.h>
+#include <linux/if_ether.h>
 #include <linux/tcp.h>
 #include <netinet/in.h>
 #include <print>
@@ -43,9 +44,12 @@ std::unique_ptr<Logger> make_logger(Protocols proto, LogLevel lvl) {
             return std::make_unique<ArpLogger>(lvl);
             break;
         }
-        case Protocols::IP: {
-            return std::make_unique<IpLogger>(lvl);
+        case Protocols::IPv4: {
+            return std::make_unique<Ip4Logger>(lvl);
             break;
+        }
+        case Protocols::IPv6: {
+            return std::make_unique<Ip6Logger>(lvl);
         }
         case Protocols::TCP: {
             return std::make_unique<TcpLogger>(lvl);
@@ -59,12 +63,16 @@ std::unique_ptr<Logger> make_logger(Protocols proto, LogLevel lvl) {
             return std::make_unique<IcmpLogger>(lvl);
             break;
         }
+        case Protocols::ICMPv6: {
+            return std::make_unique<Icmp6Logger>(lvl);
+            break;
+        }
         case Protocols::TLS: {
             return std::make_unique<TlsLogger>(lvl);
             break;
         }
         default: {
-            throw std::runtime_error("Parser type is not supported");
+            throw std::runtime_error("Logger type is not supported");
             break;
         }
     }
@@ -104,12 +112,16 @@ std::string EthLogger::process(std::shared_ptr<void> p) {
 
     Protocols proto{};
     switch (ntohs(eth->hdr.h_proto)) {
-        case 0x0800: {
-            proto = Protocols::IP;
+        case ETH_P_IP: {
+            proto = Protocols::IPv4;
             break;
         }
-        case 0x0806: {
+        case ETH_P_ARP: {
             proto = Protocols::ARP;
+            break;
+        }
+        case ETH_P_IPV6: {
+            proto = Protocols::IPv6;
             break;
         }
         default: {
@@ -174,9 +186,9 @@ std::string ArpLogger::process(std::shared_ptr<void> p) {
     return res;
 }
 
-std::string IpLogger::process(std::shared_ptr<void> p) {
+std::string Ip4Logger::process(std::shared_ptr<void> p) {
     std::string res;
-    const iphdr_f* ip = static_cast<const iphdr_f*>(p.get());
+    const ip4hdr_f* ip = static_cast<const ip4hdr_f*>(p.get());
 
     char sip_buf[INET_ADDRSTRLEN]{}; // ipv6 not supported yet
     char tip_buf[INET_ADDRSTRLEN]{};
@@ -192,7 +204,7 @@ std::string IpLogger::process(std::shared_ptr<void> p) {
         break;
     }
     case LogLevel::VV: {
-        res += std::format("Src: {} -> Dest: {}, TTL: {};\n", sip_buf, tip_buf, ip->hdr.ttl, ntohs(ip->hdr.id), ip->hdr.protocol);
+        res += std::format("Src: {} -> Dest: {}, TTL: {}, Proto: {};\n", sip_buf, tip_buf, ip->hdr.ttl, ip->hdr.protocol);
         break;
     }
     case LogLevel::VVV: {
@@ -201,18 +213,18 @@ std::string IpLogger::process(std::shared_ptr<void> p) {
         bool df_flag = flags & 0b0100000000000000;
         bool mf_flag = flags & 0b0010000000000000;
 
-        std::string proto{"Unknown"};
+        std::string proto_str{"Unknown"};
         switch (ip->hdr.protocol) {
             case IPPROTO_TCP: {
-                proto = "TCP";
+                proto_str = "TCP";
                 break;
             }
             case IPPROTO_UDP: {
-                proto = "UDP";
+                proto_str = "UDP";
                 break;
             }
             case IPPROTO_ICMP: {
-                proto = "ICMP";
+                proto_str = "ICMP";
                 break;
             }
             default: {
@@ -222,7 +234,7 @@ std::string IpLogger::process(std::shared_ptr<void> p) {
 
         res += std::format("\n    Src: {} -> Dest: {}\n    Total Len: {}, Flags: {}{}{}, TTL: {}\n    Protocol: {}({});\n",
             sip_buf, tip_buf, ntohs(ip->hdr.tot_len), reserved_flag ? "R" : ".", df_flag ? "D" : ".", mf_flag ? "M" : ".", ip->hdr.ttl,
-            ip->hdr.protocol, proto);
+            ip->hdr.protocol, proto_str);
         break;
     }
     }
@@ -249,6 +261,82 @@ std::string IpLogger::process(std::shared_ptr<void> p) {
     auto next_log = make_logger(proto, m_log_lvl);
     res += next_log->process(ip->plod);
 
+    return res;
+}
+
+std::string Ip6Logger::process(std::shared_ptr<void> p) {
+    std::string res;
+    const ip6hdr_f* ip = static_cast<const ip6hdr_f*>(p.get());
+
+    std::array<char, INET6_ADDRSTRLEN> saddr{};
+    std::array<char, INET6_ADDRSTRLEN> taddr{};
+    const char* r = inet_ntop(AF_INET6, &ip->hdr.saddr, saddr.data(), saddr.size());
+    assert(r);
+    r = inet_ntop(AF_INET6, &ip->hdr.daddr, taddr.data(), taddr.size());
+    assert(r);
+
+    res += "IPv6: ";
+    switch (m_log_lvl) {
+    case LogLevel::V: {
+        res += std::format("{} -> {}; ", saddr.data(), taddr.data());
+        break;
+    }
+    case LogLevel::VV: {
+        res += std::format("Src: {} -> Dest: {}, TTL: {}, Protocol: {};\n", saddr.data(), taddr.data(), ip->hdr.hop_limit, ip->hdr.nexthdr);
+        break;
+    }
+    case LogLevel::VVV: {
+        std::string proto_str{"Unknown"};
+        switch (ip->hdr.nexthdr) {
+            case IPPROTO_TCP: {
+                proto_str = "TCP";
+                break;
+            }
+            case IPPROTO_UDP: {
+                proto_str = "UDP";
+                break;
+            }
+            case IPPROTO_ICMP: {
+                proto_str = "ICMP";
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+
+        res += std::format("\n    Src: {} -> Dest: {}\n    Plod len: {}, TTL: {}\n    Protocol: {}({});\n",
+            saddr.data(), taddr.data(), ntohs(ip->hdr.payload_len),
+            ip->hdr.hop_limit, ip->hdr.nexthdr, proto_str);
+        break;
+    }
+    }
+
+    Protocols proto{};
+    switch (ip->hdr.nexthdr) {
+        case IPPROTO_ICMP: {
+            proto = Protocols::ICMP;
+            break;
+        }
+        case IPPROTO_TCP: {
+            proto = Protocols::TCP;
+            break;
+        }
+        case IPPROTO_UDP: {
+            proto = Protocols::UDP;
+            break;
+        }
+        case IPPROTO_ICMPV6: {
+            proto = Protocols::ICMPv6;
+            break;
+        }
+        default: {
+            return res;
+            break;
+        }
+    }
+    auto next_logger = make_logger(proto, m_log_lvl);
+    res += next_logger->process(ip->plod);
     return res;
 }
 
@@ -368,9 +456,15 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
     switch (icmp->hdr.type) {
         case 8: {
             type = "echo request";
+            break;
         }
         case 0: {
             type = "echo reply";
+            break;
+        }
+        default: {
+            type = "Unknown";
+            break;
         }
     }
     switch (m_log_lvl) {
@@ -384,6 +478,43 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
     }
     case LogLevel::VVV: {
         res += std::format("\n    {}, code: {}; ", type, icmp->hdr.code);
+        break;
+    }
+    }
+    return res;
+}
+
+std::string Icmp6Logger::process(std::shared_ptr<void> p) {
+    std::string res;
+    const icmphdr_f* icmp = static_cast<const icmphdr_f*>(p.get());
+
+    res += "ICMPv6: ";
+    std::string type;
+    switch (icmp->hdr.type) {
+        case 128: {
+            type = "echo request";
+            break;
+        }
+        case 129: {
+            type = "echo reply";
+            break;
+        }
+        default: {
+            type = "Unknown";
+            break;
+        }
+    }
+    switch (m_log_lvl) {
+    case LogLevel::V: {
+        res += std::format("type: {}, code: {}; ", type, icmp->hdr.code);
+        break;
+    }
+    case LogLevel::VV: {
+        res += std::format("type: {}, code: {};\n", type, icmp->hdr.code);
+        break;
+    }
+    case LogLevel::VVV: {
+        res += std::format("\n    type: {}, code: {}; ", type, icmp->hdr.code);
         break;
     }
     }
@@ -442,21 +573,27 @@ std::string IcmpLogger::process(std::shared_ptr<void> p) {
  }
 
  void print_entry(const Entry& en) {
-    char sbuf[INET6_ADDRSTRLEN]{};
-    char tbuf[INET6_ADDRSTRLEN]{};
+    std::array<char, INET6_ADDRSTRLEN> sbuf{};
+    std::array<char, INET6_ADDRSTRLEN> tbuf{};
     if (en.eth_proto == htons(ETH_P_IP)) {
-        const char* r = inet_ntop(AF_INET, en.saddr.data(), sbuf, sizeof(sbuf));
+        const char* r = inet_ntop(AF_INET, en.saddr.data(), sbuf.data(), sbuf.size());
         assert(r);
-        r = inet_ntop(AF_INET, en.taddr.data(), tbuf, sizeof(tbuf));
+        r = inet_ntop(AF_INET, en.taddr.data(), tbuf.data(), tbuf.size());
+        assert(r);
+    } else if (en.eth_proto == htons(ETH_P_IPV6)) {
+        const char* r = inet_ntop(AF_INET6, en.saddr.data(), sbuf.data(), tbuf.size());
+        assert(r);
+        r = inet_ntop(AF_INET6, en.taddr.data(), tbuf.data(), tbuf.size());
         assert(r);
     }
+
 
     std::println("{}:\n    SHAddr: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, THAddr: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, EtherType: {:#04x}\n    SAddr: {}, TAddr: {}, IP Proto: {}\n    SPort: {}, TPort: {}",
         en.ts,
         en.shaddr[0], en.shaddr[1], en.shaddr[2], en.shaddr[3], en.shaddr[4], en.shaddr[5],
         en.thaddr[0], en.thaddr[1], en.thaddr[2], en.thaddr[3], en.thaddr[4], en.thaddr[5],
-        ntohs(en.eth_proto), // why ntohs?
-        en.eth_proto == htons(ETH_P_IP) ? sbuf : "-", en.eth_proto == htons(ETH_P_IP) ? tbuf : "-",
+        ntohs(en.eth_proto),
+        (en.eth_proto == htons(ETH_P_IP) || en.eth_proto == htons(ETH_P_IPV6)) ? sbuf.data() : "-", (en.eth_proto == htons(ETH_P_IP) || en.eth_proto == htons(ETH_P_IPV6)) ? tbuf.data() : "-",
         en.ip_proto,
         ntohs(en.sport), ntohs(en.tport)
     );

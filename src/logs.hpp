@@ -43,9 +43,15 @@ public:
     std::string process(std::shared_ptr<void> p) override;
 };
 
-class IpLogger final : public Logger {
+class Ip4Logger final : public Logger {
 public:
-    IpLogger(LogLevel lvl) : Logger(lvl) {}
+    Ip4Logger(LogLevel lvl) : Logger(lvl) {}
+    std::string process(std::shared_ptr<void> p) override;
+};
+
+class Ip6Logger final : public Logger {
+public:
+    Ip6Logger(LogLevel lvl) : Logger(lvl) {}
     std::string process(std::shared_ptr<void> p) override;
 };
 
@@ -64,6 +70,12 @@ public:
 class IcmpLogger final : public Logger {
 public:
     IcmpLogger(LogLevel lvl) : Logger(lvl) {}
+    std::string process(std::shared_ptr<void> p) override;
+};
+
+class Icmp6Logger final : public Logger {
+public:
+    Icmp6Logger(LogLevel lvl) : Logger(lvl) {}
     std::string process(std::shared_ptr<void> p) override;
 };
 

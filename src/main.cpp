@@ -149,12 +149,20 @@ void read_mode(argparse::ArgumentParser& parser) {
         entries = std::move(filtered);
     }
     if (parser.is_used("saddr")) {
-        auto addr = convert_to_addr(parser.get<std::string>("saddr"));
-        auto r = addr.and_then([&entries](in_addr_t addr) ->  std::expected<in_addr_t, std::string> {
-            auto filtered = entries | std::views::filter([addr](const Entry& en){
-                uint32_t ip;
-                std::memcpy(&ip, en.saddr.data(), 4);
-                return ip == addr;
+        auto addr_str = parser.get<std::string>("saddr");
+        auto addr = convert_to_addr(addr_str);
+        auto r = addr.and_then([&entries, &addr_str](std::array<char, 16> addr) ->  std::expected<in_addr_t, std::string> {
+            auto filtered = entries | std::views::filter([addr, &addr_str](const Entry& en){
+                if (addr_str.contains(":")) {
+                    return !std::memcmp(addr.data(), en.saddr.data(), addr.size());
+                } else { // v4
+                    uint32_t en_ip;
+                    uint32_t ip;
+                    std::memcpy(&en_ip, en.saddr.data(), 4);
+                    std::memcpy(&ip, addr.data(), 4);
+
+                    return en_ip == ip;
+                }
             }) | std::ranges::to<std::vector>();
             entries = std::move(filtered);
             return {};
@@ -164,12 +172,21 @@ void read_mode(argparse::ArgumentParser& parser) {
         });
     }
     if (parser.is_used("taddr")) {
-        auto addr = convert_to_addr(parser.get<std::string>("taddr"));
-        auto r = addr.and_then([&entries](in_addr_t addr) ->  std::expected<in_addr_t, std::string> {
-            auto filtered = entries | std::views::filter([addr](const Entry& en){
-                uint32_t ip;
-                std::memcpy(&ip, en.taddr.data(), 4);
-                return ip == addr;
+        auto addr_str = parser.get<std::string>("taddr");
+        auto addr = convert_to_addr(addr_str);
+        auto r = addr.and_then([&entries, &addr_str](std::array<char, 16> addr) ->  std::expected<in_addr_t, std::string> {
+            auto filtered = entries | std::views::filter([addr, &addr_str](const Entry& en){
+                if (addr_str.contains(":")) {
+
+                    return !std::memcmp(addr.data(), en.taddr.data(), addr.size());
+                } else { // v4
+                    uint32_t en_ip;
+                    uint32_t ip;
+                    std::memcpy(&en_ip, en.taddr.data(), 4);
+                    std::memcpy(&ip, addr.data(), 4);
+
+                    return en_ip == ip;
+                }
             }) | std::ranges::to<std::vector>();
             entries = std::move(filtered);
             return {};

@@ -2,10 +2,12 @@
 #include "packet.hpp"
 #include <chrono>
 #include <cstring>
+#include <linux/if_ether.h>
 #include <memory>
 #include <netinet/in.h>
 #include <print>
 #include <stdexcept>
+#include <utility>
 
 std::unique_ptr<Parser> make_parser(Protocols proto) {
     switch (proto) {
@@ -17,8 +19,12 @@ std::unique_ptr<Parser> make_parser(Protocols proto) {
             return std::make_unique<ArpParser>();
             break;
         }
-        case Protocols::IP: {
-            return std::make_unique<IpParser>();
+        case Protocols::IPv4: {
+            return std::make_unique<Ip4Parser>();
+            break;
+        }
+        case Protocols::IPv6: {
+            return std::make_unique<Ip6Parser>();
             break;
         }
         case Protocols::TCP: {
@@ -33,12 +39,16 @@ std::unique_ptr<Parser> make_parser(Protocols proto) {
             return std::make_unique<IcmpParser>();
             break;
         }
+        case Protocols::ICMPv6: {
+            return std::make_unique<Icmp6Parser>();
+            break;
+        }
         case Protocols::TLS: {
             return std::make_unique<TlsParser>();
             break;
         }
         default: {
-            throw std::runtime_error("Parser type is not supported");
+            throw std::runtime_error("Logger type is not supported");
             break;
         }
     }
@@ -83,6 +93,16 @@ std::shared_ptr<void> IcmpParser::parse(std::span<char> bytes, Entry& entry) {
     constexpr auto icmphdr_size = sizeof(icmphdr);
     if (bytes.size() < icmphdr_size) {
         throw std::runtime_error("Can't parse ICMP");
+    }
+    std::memcpy(&result->hdr, bytes.data(), icmphdr_size);
+    return result;
+}
+
+std::shared_ptr<void> Icmp6Parser::parse(std::span<char> bytes, Entry& entry) {
+    auto result = std::make_shared<icmp6hdr_f>();
+    constexpr auto icmphdr_size = sizeof(icmp6hdr);
+    if (bytes.size() < icmphdr_size) {
+        throw std::runtime_error("Can't parse ICMPv6");
     }
     std::memcpy(&result->hdr, bytes.data(), icmphdr_size);
     return result;
@@ -160,8 +180,8 @@ std::shared_ptr<void> ArpParser::parse(std::span<char> bytes, Entry& entry) {
     return result;
 }
 
-std::shared_ptr<void> IpParser::parse(std::span<char> bytes, Entry& entry) {
-    auto result = std::make_shared<iphdr_f>();
+std::shared_ptr<void> Ip4Parser::parse(std::span<char> bytes, Entry& entry) {
+    auto result = std::make_shared<ip4hdr_f>();
     constexpr auto iphdr_size = sizeof(iphdr);
     if (bytes.size() < iphdr_size) {
         throw std::runtime_error("Can't parse IP");
@@ -211,6 +231,42 @@ std::shared_ptr<void> IpParser::parse(std::span<char> bytes, Entry& entry) {
     return result;
 }
 
+std::shared_ptr<void> Ip6Parser::parse(std::span<char> bytes, Entry& entry) {
+    auto result = std::make_shared<ip6hdr_f>();
+    constexpr auto iphdr_size = sizeof(ipv6hdr);
+    if (bytes.size() < iphdr_size) {
+        throw std::runtime_error{"Can't parse IPv6"};
+    }
+    std::memcpy(&result->hdr, bytes.data(), iphdr_size);
+    bytes = bytes.subspan(iphdr_size);
+
+    std::memcpy(entry.saddr.data(), &result->hdr.saddr, sizeof(result->hdr.saddr));
+    std::memcpy(entry.taddr.data(), &result->hdr.daddr, sizeof(result->hdr.daddr));
+    entry.ip_proto = result->hdr.nexthdr;
+
+    Protocols proto{};
+    switch (result->hdr.nexthdr) {
+        case IPPROTO_TCP:
+            proto = Protocols::TCP;
+            break;
+        case IPPROTO_UDP:
+            proto = Protocols::UDP;
+            break;
+        case IPPROTO_ICMP:
+            proto = Protocols::ICMP;
+        case IPPROTO_ICMPV6:
+            proto = Protocols::ICMPv6;
+            break;
+        default:
+            return result;
+            break;
+    }
+
+    auto next_parser = make_parser(proto);
+    result->plod = next_parser->parse(bytes, entry);
+    return result;
+}
+
 std::shared_ptr<void> EthParser::parse(std::span<char> bytes, Entry& entry) {
     auto result = std::make_shared<ethhdr_f>();
     constexpr auto ethhdr_size = sizeof(ethhdr);
@@ -236,11 +292,15 @@ std::shared_ptr<void> EthParser::parse(std::span<char> bytes, Entry& entry) {
     Protocols proto{};
     switch (ntohs(result->hdr.h_proto)) {
         case ETH_P_IP: {
-            proto = Protocols::IP;
+            proto = Protocols::IPv4;
             break;
         }
         case ETH_P_ARP: {
             proto = Protocols::ARP;
+            break;
+        }
+        case ETH_P_IPV6: {
+            proto = Protocols::IPv6;
             break;
         }
         default: {
