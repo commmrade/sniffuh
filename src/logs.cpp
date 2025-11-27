@@ -148,15 +148,15 @@ std::string ArpLogger::process(std::shared_ptr<void> p) {
         switch (m_log_lvl) {
         case LogLevel::V: {
             if (op == 1) { // request
-                char addr_buf[INET_ADDRSTRLEN]{};
-                const char* r = inet_ntop(AF_INET, body.ar_tip, addr_buf, sizeof(addr_buf));
+                std::array<char, INET_ADDRSTRLEN> addr_buf{};
+                const char* r = inet_ntop(AF_INET, body.ar_tip, addr_buf.data(), addr_buf.size());
                 assert(r);
-                res += std::format("who is {}; ", addr_buf);
+                res += std::format("who is {}; ", addr_buf.data());
             } else if (op == 2) {
-                char addr_buf[INET_ADDRSTRLEN]{};
-                const char* r = inet_ntop(AF_INET, body.ar_sip, addr_buf, sizeof(addr_buf));
+                std::array<char, INET_ADDRSTRLEN> addr_buf{};
+                const char* r = inet_ntop(AF_INET, body.ar_sip, addr_buf.data(), addr_buf.size());
                 assert(r);
-                res += std::format("{} is at {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}; ", addr_buf,
+                res += std::format("{} is at {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}; ", addr_buf.data(),
                     body.ar_sha[0], body.ar_sha[1], body.ar_sha[2], body.ar_sha[3], body.ar_sha[4], body.ar_sha[5]);
             }
             break;
@@ -169,16 +169,16 @@ std::string ArpLogger::process(std::shared_ptr<void> p) {
             break;
         }
         case LogLevel::VVV: {
-            char sip_buf[INET_ADDRSTRLEN]{};
-            char tip_buf[INET_ADDRSTRLEN]{};
-            const char* r = inet_ntop(AF_INET, body.ar_sip, sip_buf, sizeof(sip_buf));
+            std::array<char, INET_ADDRSTRLEN> sip_buf{};
+            std::array<char, INET_ADDRSTRLEN> tip_buf{};
+            const char* r = inet_ntop(AF_INET, body.ar_sip, sip_buf.data(), sip_buf.size());
             assert(r);
-            r = inet_ntop(AF_INET, body.ar_tip, tip_buf, sizeof(tip_buf));
+            r = inet_ntop(AF_INET, body.ar_tip, tip_buf.data(), tip_buf.size());
             assert(r);
 
             res += std::format("\n    SIP: {}, SHA: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\n    TIP: {}, THA: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x};\n",
-                sip_buf, body.ar_sha[0], body.ar_sha[1], body.ar_sha[2], body.ar_sha[3], body.ar_sha[4], body.ar_sha[5],
-                tip_buf, body.ar_tha[0], body.ar_tha[1], body.ar_tha[2], body.ar_tha[3], body.ar_tha[4], body.ar_tha[5]);
+                sip_buf.data(), body.ar_sha[0], body.ar_sha[1], body.ar_sha[2], body.ar_sha[3], body.ar_sha[4], body.ar_sha[5],
+                tip_buf.data(), body.ar_tha[0], body.ar_tha[1], body.ar_tha[2], body.ar_tha[3], body.ar_tha[4], body.ar_tha[5]);
         }
         }
     }
@@ -190,21 +190,21 @@ std::string Ip4Logger::process(std::shared_ptr<void> p) {
     std::string res;
     const ip4hdr_f* ip = static_cast<const ip4hdr_f*>(p.get());
 
-    char sip_buf[INET_ADDRSTRLEN]{}; // ipv6 not supported yet
-    char tip_buf[INET_ADDRSTRLEN]{};
-    const char* r = inet_ntop(AF_INET, &ip->hdr.saddr, sip_buf, sizeof(sip_buf));
+    std::array<char, INET_ADDRSTRLEN> sip_buf{};
+    std::array<char, INET_ADDRSTRLEN> tip_buf{};
+    const char* r = inet_ntop(AF_INET, &ip->hdr.saddr, sip_buf.data(), sip_buf.size());
     assert(r);
-    r = inet_ntop(AF_INET, &ip->hdr.daddr, tip_buf, sizeof(tip_buf));
+    r = inet_ntop(AF_INET, &ip->hdr.daddr, tip_buf.data(), tip_buf.size());
     assert(r);
 
     res += "IP: ";
     switch (m_log_lvl) {
     case LogLevel::V: {
-        res += std::format("{} -> {}; ", sip_buf, tip_buf);
+        res += std::format("{} -> {}; ", sip_buf.data(), tip_buf.data());
         break;
     }
     case LogLevel::VV: {
-        res += std::format("Src: {} -> Dest: {}, TTL: {}, Proto: {};\n", sip_buf, tip_buf, ip->hdr.ttl, ip->hdr.protocol);
+        res += std::format("Src: {} -> Dest: {}, TTL: {}, Proto: {};\n", sip_buf.data(), tip_buf.data(), ip->hdr.ttl, ip->hdr.protocol);
         break;
     }
     case LogLevel::VVV: {
@@ -233,7 +233,7 @@ std::string Ip4Logger::process(std::shared_ptr<void> p) {
         }
 
         res += std::format("\n    Src: {} -> Dest: {}\n    Total Len: {}, Flags: {}{}{}, TTL: {}\n    Protocol: {}({});\n",
-            sip_buf, tip_buf, ntohs(ip->hdr.tot_len), reserved_flag ? "R" : ".", df_flag ? "D" : ".", mf_flag ? "M" : ".", ip->hdr.ttl,
+            sip_buf.data(), tip_buf.data(), ntohs(ip->hdr.tot_len), reserved_flag ? "R" : ".", df_flag ? "D" : ".", mf_flag ? "M" : ".", ip->hdr.ttl,
             ip->hdr.protocol, proto_str);
         break;
     }
@@ -428,7 +428,7 @@ std::string TcpLogger::process(std::shared_ptr<void> p) {
 
 std::string UdpLogger::process(std::shared_ptr<void> p) {
     std::string res;
-    const udphdr_f* udp = static_cast<udphdr_f*>(p.get());
+    const udphdr_f* udp = static_cast<const udphdr_f*>(p.get());
 
     res += "UDP: ";
     switch (m_log_lvl) {
