@@ -64,7 +64,7 @@ std::pair<Packet, Entry> parse_packet(std::span<char> bytes) {
     return {result, entry};
 }
 
-std::shared_ptr<void> TlsParser::parse(std::span<char> bytes, Entry& entry) {
+std::shared_ptr<void> TlsParser::parse(std::span<char> bytes, [[maybe_unused]] Entry& entry) {
     auto result = std::make_shared<tlsrecords>();
     constexpr size_t hdr_size = sizeof(tlsrecordhdr);
     while (!bytes.empty()) {
@@ -88,7 +88,7 @@ std::shared_ptr<void> TlsParser::parse(std::span<char> bytes, Entry& entry) {
 }
 
 
-std::shared_ptr<void> IcmpParser::parse(std::span<char> bytes, Entry& entry) {
+std::shared_ptr<void> IcmpParser::parse(std::span<char> bytes, [[maybe_unused]] Entry& entry) {
     auto result = std::make_shared<icmphdr_f>();
     constexpr auto icmphdr_size = sizeof(icmphdr);
     if (bytes.size() < icmphdr_size) {
@@ -98,7 +98,7 @@ std::shared_ptr<void> IcmpParser::parse(std::span<char> bytes, Entry& entry) {
     return result;
 }
 
-std::shared_ptr<void> Icmp6Parser::parse(std::span<char> bytes, Entry& entry) {
+std::shared_ptr<void> Icmp6Parser::parse(std::span<char> bytes, [[maybe_unused]] Entry& entry) {
     auto result = std::make_shared<icmp6hdr_f>();
     constexpr auto icmphdr_size = sizeof(icmp6hdr);
     if (bytes.size() < icmphdr_size) {
@@ -160,7 +160,7 @@ std::shared_ptr<void> UdpParser::parse(std::span<char> bytes, Entry& entry) {
     return result;
 }
 
-std::shared_ptr<void> ArpParser::parse(std::span<char> bytes, Entry& entry) {
+std::shared_ptr<void> ArpParser::parse(std::span<char> bytes, [[maybe_unused]] Entry& entry) {
     auto result = std::make_shared<arphdr_f>();
     constexpr auto arphdr_size = sizeof(arphdr);
     if (bytes.size() < arphdr_size) {
