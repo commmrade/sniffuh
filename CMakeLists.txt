@@ -27,6 +27,4 @@ target_include_directories(sniffuh PRIVATE include)
 
 target_compile_options(sniffuh PRIVATE -Wall -Wextra)
 
-find_package(nlohmann_json REQUIRED)
-
-target_link_libraries(sniffuh PRIVATE nlohmann_json::nlohmann_json argparse)
+target_link_libraries(sniffuh PRIVATE argparse)

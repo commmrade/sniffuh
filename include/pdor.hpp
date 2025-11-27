@@ -5,81 +5,58 @@
 #include <netinet/in.h>
 #include <optional>
 #include <print>
+#include <stdexcept>
 #include "entry.hpp"
 
 namespace pdor {
 
-enum class Mode {
-    Read,
-    Write
-};
+constexpr inline static std::uint32_t MAGIC_VALUE = 0xCAFE;
+constexpr inline static std::uint16_t MAJOR = 1;
+constexpr inline static std::uint16_t MINOR = 0;
+constexpr inline static int HEADER_SIZE = 8;
 
-class File { // TODO: Split into reader and writer
-    std::fstream m_file;
+class Reader {
+    std::ifstream m_file;
     std::string m_filepath;
 
-    bool process_header() {
-        // TODO: Fix this shit
+    bool check_header() {
         m_file.seekg(0, std::ios::end);
         auto file_size = m_file.tellg();
         m_file.seekg(0);
-        if (file_size > 8) {
-            std::uint32_t magic;
-            m_file.read((char*)&magic, sizeof(magic));
-            m_file.seekg(0);
-            if (ntohl(magic) != 0xCAFE) {
-                std::println("{} is not a .pdor file", m_filepath);
-                return false;
-            }
-            m_file.seekg(8); // Header size
-        } else {
-            std::uint32_t magic = htonl(0xCAFE);
-            std::uint16_t major = htons(1);
-            std::uint16_t minor = htons(0);
-            m_file.write((char*)&magic, sizeof(magic));
-            m_file.write((char*)&major, sizeof(major));
-            m_file.write((char*)&minor, sizeof(minor));
-            m_file.seekg(8);
+        if (file_size < HEADER_SIZE) {
+            return false;
         }
 
-        std::println("here");
+        std::uint32_t magic;
+        m_file.read((char*)&magic, sizeof(magic));
+        m_file.seekg(0);
+        if (ntohl(magic) != MAGIC_VALUE) {
+            throw std::runtime_error("Not a .pdor file");
+        }
+        m_file.seekg(HEADER_SIZE); // Header size
         return true;
     }
 public:
-    File(std::string filepath) : m_filepath{std::move(filepath)} {
+    Reader(std::string filepath) : m_filepath{std::move(filepath)} {
     }
 
-    bool open(Mode m) {
-        if (m == Mode::Read) {
-            m_file.open(m_filepath, std::ios::binary | std::ios::in);
-        } else {
-            m_file.open(m_filepath, std::ios::binary | std::ios::out);
-        }
+    bool open() {
+        m_file.open(m_filepath, std::ios::binary | std::ios::in);
         if (!m_file.is_open()) {
             return false;
         }
-        return process_header();
+        return check_header();
     }
-    bool open(const std::string& filepath, Mode m) {
+    bool open(const std::string& filepath) {
         m_filepath = filepath;
-        if (m == Mode::Read) {
-            m_file.open(m_filepath, std::ios::binary | std::ios::in);
-        } else {
-            m_file.open(m_filepath, std::ios::binary | std::ios::out);
-        }
-        if (!m_file.is_open()) {
-            return false;
-        }
-        return process_header();
-    }
-    void close() {
-        m_file.close();
+        return open();
     }
 
     bool read(Entry& res) {
         detail::Entry__ raw_pkt;
         m_file.read(reinterpret_cast<char*>(&raw_pkt), sizeof(raw_pkt));
-        int pos = m_file.tellg();
+
+        std::println("{} {}", (int)m_file.tellg(), m_file.gcount());
         if ((unsigned long)m_file.gcount() < sizeof(raw_pkt)) {
             return false; // EOS
         }
@@ -113,6 +90,58 @@ public:
         res.sport = raw_pkt.sport;
         res.tport = raw_pkt.tport;
         return res;
+    }
+};
+
+class Writer {
+    std::ofstream m_file;
+    std::string m_filepath;
+
+    bool check_header() {
+        std::ifstream file{m_filepath};
+
+        file.seekg(0, std::ios::end);
+        auto file_size = file.tellg();
+        file.seekg(0);
+
+        if (file_size > HEADER_SIZE) {
+            std::uint32_t magic;
+            file.read((char*)&magic, sizeof(magic));
+            if (ntohl(magic) != MAGIC_VALUE) {
+                throw std::runtime_error("Not a .pdor file");
+            }
+        } else {
+            return false; // File is new
+        }
+        return true;
+    }
+    void write_header() {
+        std::uint32_t magic = htonl(MAGIC_VALUE);
+        std::uint16_t major = htons(MAJOR);
+        std::uint16_t minor = htons(MINOR);
+        m_file.write((char*)&magic,  sizeof(magic));
+        m_file.write((char*)&major, sizeof(major));
+        m_file.write((char*)&minor, sizeof(minor));
+    }
+public:
+    Writer(std::string filepath) : m_filepath{std::move(filepath)} {
+    }
+
+    bool open() {
+        bool r = check_header();
+        m_file.open(m_filepath, std::ios::binary | std::ios::out);
+        if (!m_file.is_open()) {
+            return false;
+        }
+        if (!r) {
+            write_header();
+        }
+        m_file.seekp(HEADER_SIZE);
+        return true;
+    }
+    bool open(const std::string& filepath) {
+        m_filepath = filepath;
+        return open();
     }
     void write(const Entry& en) {
         m_file.write((char*)&en.ts, sizeof(en.ts));
