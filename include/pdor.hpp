@@ -4,8 +4,6 @@
 #include <fstream>
 #include <netinet/in.h>
 #include <optional>
-#include <print>
-#include <stdexcept>
 #include "entry.hpp"
 
 namespace pdor {
@@ -19,8 +17,7 @@ class Reader {
     std::ifstream m_file;
     std::string m_filepath;
 public:
-    Reader(std::string filepath) : m_filepath{std::move(filepath)} {
-    }
+    Reader(std::string filepath) : m_filepath{std::move(filepath)} {}
 
     bool open();
     bool open(const std::string &filepath);
@@ -35,8 +32,7 @@ class Writer {
     std::ofstream m_file;
     std::string m_filepath;
 public:
-    Writer(std::string filepath) : m_filepath{std::move(filepath)} {
-    }
+    Writer(std::string filepath) : m_filepath{std::move(filepath)} {}
     bool open();
     bool open(const std::string &filepath);
     void write(const Entry &en);

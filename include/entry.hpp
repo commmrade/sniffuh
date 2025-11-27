@@ -3,7 +3,7 @@
 
 namespace pdor {
 /// Everything is in big endian
-struct Entry { // TODO: Maybe I should store this in Host endianness and convert to BE when writing and convert from BE when reading
+struct Entry {
     std::uint64_t ts;
     std::array<char, 6> shaddr;
     std::array<char, 6> thaddr;
