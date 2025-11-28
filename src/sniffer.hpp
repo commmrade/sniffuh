@@ -1,6 +1,9 @@
 #pragma once
-#include "logs.hpp"
 #include <string_view>
+#include "packet.hpp"
+#include "entry.hpp"
+
+using pdor::Entry;
 
 class Sniffer {
     int m_sock;
