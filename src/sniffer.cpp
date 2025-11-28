@@ -69,7 +69,7 @@ void Sniffer::setup(std::string_view if_name) {
 
 std::pair<Packet, Entry> Sniffer::sniff() {
     std::array<char, (1 << 16)> buf;
-    std::ssize_t rd_bytes = recv(m_sock, buf.data(), buf.size(), 0);
+    ssize_t rd_bytes = recv(m_sock, buf.data(), buf.size(), 0);
 
     if (rd_bytes <= 0) {
         perror("recv");
