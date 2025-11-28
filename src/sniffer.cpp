@@ -1,4 +1,3 @@
-#ifdef __linux__
 #include <net/if.h>
 #include <linux/in6.h>
 #include <netinet/in.h>
@@ -14,9 +13,6 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <sys/ioctl.h>
-#elif _WIN32
-#include <WinSock2.h>
-#endif
 #include "sniffer.hpp"
 #include "packet.hpp"
 #include "parser.hpp"
@@ -36,11 +32,8 @@ Sniffer::~Sniffer() {
 
 void Sniffer::setup(std::string_view if_name) {
     int ret;
-#ifdef __linux
     m_sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-#elif _WIN32
 
-#endif
     if (m_sock < 0) {
         perror("socket");
         throw std::runtime_error("Socket creation failed");
@@ -76,7 +69,8 @@ void Sniffer::setup(std::string_view if_name) {
 
 std::pair<Packet, Entry> Sniffer::sniff() {
     std::array<char, (1 << 16)> buf;
-    ssize_t rd_bytes = recv(m_sock, buf.data(), sizeof(buf), 0);
+    std::ssize_t rd_bytes = recv(m_sock, buf.data(), buf.size(), 0);
+
     if (rd_bytes <= 0) {
         perror("recv");
         throw std::runtime_error("Recv failed");

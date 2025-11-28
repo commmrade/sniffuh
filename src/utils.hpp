@@ -1,10 +1,6 @@
 #pragma once
-#include <expected>
-#ifdef __linux
+#include <expected
 #include <netinet/in.h>
-
-#elif _WIN32
-#endif
 #include <string>
 #include <vector>
 #include <array>

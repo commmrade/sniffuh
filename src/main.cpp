@@ -11,18 +11,6 @@
 #include "argparse/argparse.hpp"
 #include "utils.hpp"
 
-/*
-#ifdef __linux__
-    //linux code goes here
-#elif _WIN32
-    // windows code goes here
-#else
-
-#endif
-
-*/
-
-
 void setup_parser(argparse::ArgumentParser& parser) {
     {
         auto& group = parser.add_mutually_exclusive_group(true);
