@@ -25,7 +25,11 @@ add_executable(sniffuh
 )
 
 target_include_directories(sniffuh PRIVATE include)
-
-target_compile_options(sniffuh PRIVATE -Wall -Wextra)
+if (UNIX) 
+    target_compile_options(sniffuh PRIVATE -Wall -Wextra)
+elseif (WIN32)
+    target_compile_options(sniffuh PRIVATE /Wall)
+    target_link_libraries(sniffuh PRIVATE iphlapi ws2_32)
+endif ()
 
 target_link_libraries(sniffuh PRIVATE argparse)

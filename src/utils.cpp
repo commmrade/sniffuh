@@ -1,12 +1,22 @@
 #include "utils.hpp"
+#ifdef __linux__
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
+#elif _WIN32
+#include <winsock2.h>      // Must include before windows.h
+#include <ws2tcpip.h>
+#include <iphlpapi.h>      // For GetAdaptersAddresses
+#include <Windows.h>
+#include <format>
+#endif
 #include <stdexcept>
 #include <ranges>
 
 std::vector<std::string> show_interfaces() {
     int ret;
+    std::vector<std::string> ifs;
+#ifdef __linux__
     ifaddrs *ifap, *p;
 
     ret = getifaddrs(&ifap);
@@ -16,10 +26,23 @@ std::vector<std::string> show_interfaces() {
     }
     defer ifaddrsfree{[ifap] { freeifaddrs(ifap); }};
 
-    std::vector<std::string> ifs;
     for (p = ifap; p != NULL; p = p->ifa_next) {
         ifs.emplace_back(p->ifa_name);
     }
+#elif _WIN32
+    IP_ADAPTER_ADDRESSES* head, * cur;
+    int len{};
+    head = new IP_ADAPTER_ADDRESSES[100];
+    defer headfree{ [head] { delete[] head; } };
+
+    ret = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, head, (PULONG)&len);
+    if (ret != ERROR_SUCCESS) {
+        throw std::runtime_error(std::format("GetAdapterAddrs failed: {}", ret));
+    }
+    for (cur = head; cur != NULL; cur = cur->Next) {
+        ifs.emplace_back(cur->AdapterName);
+    }
+#endif
     ifs.emplace_back(ANY_INTERFACE);
     return ifs;
 }

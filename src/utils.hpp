@@ -1,9 +1,16 @@
 #pragma once
 #include <expected>
+#ifdef __linux
 #include <netinet/in.h>
+
+#elif _WIN32
+#endif
 #include <string>
 #include <vector>
 #include <array>
+
+#endif
+
 
 template <typename Action>
 struct defer {
